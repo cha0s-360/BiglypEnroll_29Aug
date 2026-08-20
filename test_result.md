@@ -456,11 +456,31 @@ frontend:
         -agent: "testing"
         -comment: "Comprehensive performance testing completed. OVERALL VERDICT: ✅ PASS - Performance bug fix SUCCESSFUL (14/17 tests passed). Test results: (1) Login page load: 0.31s (✅ excellent, well under 2s threshold); (2) Login to dashboard: 0.76s (✅ excellent, under 1.5s); (3) Sidebar navigation ALL EXCELLENT: Dashboard 0.07s, Psychometry 0.06s, Programs 0.53s, Fees 0.22s, Rewards 0.55s (all ✅ under 1.5s threshold); (4) Fee sub-tabs ALL FAST: Payment History 0.54s, Active Financing 0.53s, Pay Fees 0.22s (all ✅ under 1.5s threshold); (5) Psychometry flow: Start attempt 0.15s (✅ instant), View report 1.10s (✅ under 2s); (6) ✅ No console errors detected; (7) ✅ No HTTP 500 responses detected. Minor observations (not critical): Option B/A selection measured at 0.52s each (includes 500ms test wait, actual selection likely <20ms instant); Question navigation 1.33s (includes 1000ms test wait, actual navigation ~330ms acceptable). CONCLUSION: The user's complaint about 'delay when clicking any button — takes a lot of time for the next screen to open' has been RESOLVED. All navigation is now fast and responsive. Production build performance is excellent across all tested flows."
 
+frontend:
+  - task: "Login functionality - manual and quick demo login flows"
+    implemented: true
+    working: true
+    file: "frontend/src/app/login/page.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Bug fix applied: Frontend rebuilt with correct REACT_APP_BACKEND_URL to fix stale backend URL issue that was causing all login attempts to fail. Previously the production build had a baked-in wrong backend URL."
+        -working: true
+        -agent: "testing"
+        -comment: "Comprehensive E2E login testing completed. ALL LOGIN FLOWS WORKING CORRECTLY. Test results: (1) Login page loads successfully with 'Sign in' heading, email/password inputs (data-testid='login-email', 'login-password'), submit button (data-testid='login-submit'), and 4 quick demo login buttons; (2) Manual login - School Admin (school@biglyp.com/school123): ✅ SUCCESS - Login API POST /api/auth/login returned HTTP 200, redirected to /dashboard, success toast 'Welcome back, Anjali Sharma' displayed, dashboard content loaded with analytics widgets; (3) Manual login - Parent (parent@biglyp.com/parent123): ✅ SUCCESS - Login API returned HTTP 200, redirected to /app, success toast 'Welcome back, Anjali Sharma' displayed, parent app content loaded with fee payment options; (4) Quick demo login - Finance (finance@biglyp.com/finance123): ✅ SUCCESS - Login API returned HTTP 200, redirected to /dashboard, dashboard loaded; (5) Quick demo login - Biglyp Ops (admin@biglyp.com/admin123): ✅ SUCCESS - Login API returned HTTP 200, redirected to /dashboard, dashboard loaded; (6) Backend URL verification: ✅ ALL API CALLS USE CORRECT BACKEND URL (https://4f133497-9508-4d70-b57f-f5c0197754cc.preview.emergentagent.com/api), NO requests to wrong/stale backend host detected (0 calls to localhost/127.0.0.1 or other wrong URLs); (7) Network analysis: Total API calls=3, Correct backend=3, Wrong backend=0; (8) All login API calls returned HTTP 200 with successful authentication and token storage. Minor non-critical issues: 2 analytics API endpoints returned HTTP 400 AFTER successful login (GET /api/analytics/cashflow, GET /api/analytics/overview) - these are unrelated to login functionality and appear to be data/query parameter issues. BUG FIX VERIFIED SUCCESSFUL - frontend now correctly uses rebuilt backend URL, all login flows working end-to-end."
+
 test_plan:
   current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+agent_communication:
+    -agent: "testing"
+    -message: "Login bug fix verification complete. ALL LOGIN FLOWS NOW WORKING. The frontend rebuild successfully fixed the stale backend URL issue. All 4 tested login scenarios (School Admin manual, Parent manual, Finance quick demo, Biglyp Ops quick demo) work correctly with proper redirects, success toasts, and data loading. Network analysis confirms 100% of API calls go to the correct backend URL with NO requests to wrong/stale hosts. Login API consistently returns HTTP 200 with tokens. Minor analytics API 400 errors detected but these occur AFTER successful login and are unrelated to the login functionality itself. The bug fix is production-ready."
 
   - task: "Fee Reminders — configurable auto reminders + manual Send Now + queued email log"
     implemented: true
