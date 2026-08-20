@@ -7,7 +7,7 @@ import requests
 import math
 
 # Use the production URL from frontend/.env
-BASE_URL = "https://dashboard-preview-82.preview.emergentagent.com"
+BASE_URL = "https://bigly-signup.preview.emergentagent.com"
 API = f"{BASE_URL}/api"
 
 # Test credentials from test_credentials.md

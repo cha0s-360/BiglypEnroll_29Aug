@@ -7,7 +7,7 @@ import requests
 import json
 
 # Backend URL from frontend/.env
-BASE_URL = "https://dashboard-preview-82.preview.emergentagent.com/api"
+BASE_URL = "https://bigly-signup.preview.emergentagent.com/api"
 
 # Test credentials
 PARENT_EMAIL = "parent@biglyp.com"
