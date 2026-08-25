@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import {
   Wallet, CheckCircle2, CreditCard, ShieldCheck, Download, Calendar,
   GraduationCap, Zap, Bus, Plane, ArrowRight, Sparkles, Star, RefreshCw,
-  UtensilsCrossed, Shirt, Trophy, Music, MapPin, Check,
+  UtensilsCrossed, Shirt, Trophy, Music, MapPin, Check, FileText, IdCard,
 } from "lucide-react";
 import { FinancingWizard } from "./FinancingWizard";
 
@@ -210,9 +210,9 @@ export default function ParentDashboard() {
   };
 
   const onFinancingSuccess = (data) => {
-    setReceipt(data);
+    // The wizard now shows its own "You're all set!" summary (step 6),
+    // so we just refresh dashboard data in the background.
     refresh();
-    toast.success("Financing approved — school paid in full");
   };
 
 
@@ -423,6 +423,34 @@ export default function ParentDashboard() {
                   <Box className="mt-4 flex items-start gap-2.5 rounded-xl bg-[#EEF0FF] border border-[#5548D1]/15 p-3" data-testid="emi-callout">
                     <Zap className="h-4 w-4 text-[#5548D1] shrink-0 mt-0.5" />
                     <Typography variant="inherit" component="p" className="text-xs text-brand-navy leading-relaxed">Convert bulky academic fees into zero-interest monthly EMIs. School is paid 100% upfront.</Typography>
+                  </Box>
+                )}
+
+                {/* Documents required for the 0% EMI application (Option A only) */}
+                {selectedOption === "a" && (
+                  <Box className="mt-3 rounded-xl border border-border bg-white p-4" data-testid="emi-requirements">
+                    <Typography variant="inherit" component="p" className="text-[11px] uppercase tracking-[0.14em] text-slate-500 font-bold flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 text-[#5548D1]" /> What you&apos;ll need
+                    </Typography>
+                    <Box className="mt-3 flex items-start gap-2.5">
+                      <Box className="h-7 w-7 rounded-lg bg-[#EEF0FF] flex items-center justify-center shrink-0"><IdCard className="h-4 w-4 text-[#5548D1]" /></Box>
+                      <Box>
+                        <Typography variant="inherit" component="p" className="text-xs font-semibold text-brand-navy">Basic requirements</Typography>
+                        <Typography variant="inherit" component="p" className="text-[11.5px] text-slate-500 mt-0.5">PAN &amp; Aadhaar of the applicant (parent / guardian).</Typography>
+                      </Box>
+                    </Box>
+
+                    {academicTotal > 300000 && (
+                      <Box className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-3" data-testid="emi-requirements-docs">
+                        <Typography variant="inherit" component="p" className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">
+                          Additional requirement for financing above {inr(300000)}
+                        </Typography>
+                        <Box className="mt-2 space-y-1.5 text-[11.5px] text-amber-900">
+                          <Box className="flex items-start gap-1.5"><Box component="span" className="font-semibold min-w-[92px]">Salaried:</Box><Box component="span">3 months salary slips + 3 months bank statement</Box></Box>
+                          <Box className="flex items-start gap-1.5"><Box component="span" className="font-semibold min-w-[92px]">Self-employed:</Box><Box component="span">2 years ITR + 6 months bank statement</Box></Box>
+                        </Box>
+                      </Box>
+                    )}
                   </Box>
                 )}
 

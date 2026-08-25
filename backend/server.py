@@ -624,6 +624,31 @@ async def parent_pay(body: PayIn, user: dict = Depends(get_current_user)):
     return doc
 
 
+DOC_THRESHOLD = 300000.0  # financing above this needs income documents
+
+
+def _financing_economics(financed: float, tenure: int, down: float) -> dict:
+    """Shared economics for the 0% EMI product: a small (1%) one-time processing
+    fee + GST, everything else is genuinely interest-free."""
+    financed = max(0.0, float(financed))
+    tenure = max(1, int(tenure))
+    down = max(0.0, float(down))
+    if financed > 0:
+        pf_base = max(499.0, round(financed * 0.01))
+        processing_fee = round(pf_base * 1.18)  # incl. 18% GST
+        apr = round((processing_fee / financed) * (12.0 / tenure) * 100.0, 1)
+    else:
+        processing_fee, apr = 0.0, 0.0
+    return {
+        "processing_fee": processing_fee,
+        "apr": apr,
+        "total_repayment": round(financed),   # 0% interest -> EMIs sum to financed
+        "amount_payable_now": round(down + processing_fee),
+        "requires_docs": financed > DOC_THRESHOLD,
+        "doc_threshold": DOC_THRESHOLD,
+    }
+
+
 @api.post("/parent/financing/preview")
 async def financing_preview(body: FinancingPreviewIn, user: dict = Depends(get_current_user)):
     tenure = max(3, min(12, body.tenure))
@@ -635,8 +660,10 @@ async def financing_preview(body: FinancingPreviewIn, user: dict = Depends(get_c
         due = base + timedelta(days=30 * (i + 1))
         schedule.append({"month": i + 1, "due_date": due.strftime("%d %b %Y"),
                          "amount": emi, "status": "upcoming"})
+    econ = _financing_economics(financed, tenure, body.down_payment)
     return {"financed_amount": financed, "down_payment": body.down_payment,
-            "tenure": tenure, "emi": emi, "interest": "0%", "schedule": schedule}
+            "tenure": tenure, "emi": emi, "interest": "0%", "schedule": schedule,
+            **econ}
 
 
 @api.post("/parent/pay-financing")
@@ -666,12 +693,16 @@ async def pay_financing(body: PayIn, user: dict = Depends(get_current_user)):
                          "due_date": due.strftime("%d %b %Y"),
                          "amount": emi, "status": status, "rail": rail, "receipt_no": rcpt})
     receipt_no = main_receipt
+    econ = _financing_economics(financed, tenure, down)
     doc = {
         "student_id": student["id"], "student_name": student["name"],
         "school_id": student["school_id"], "items": selected, "amount": total,
         "gst": round(total * 0.18, 2), "mode": "Financing (EMI)", "status": "success",
         "financing": True, "plan_type": "EMI", "tenure": tenure, "emi": emi,
         "down_payment": down, "financed_amount": financed, "schedule": schedule,
+        "processing_fee": econ["processing_fee"], "apr": econ["apr"],
+        "total_repayment": econ["total_repayment"],
+        "agreement_id": "BLP-AGR-" + uuid.uuid4().hex[:8].upper(),
         "receipt_no": receipt_no, "academic_year": ACADEMIC_YEAR,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }

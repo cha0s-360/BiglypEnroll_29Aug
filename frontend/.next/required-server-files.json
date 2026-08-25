@@ -2,7 +2,7 @@
   "version": 1,
   "config": {
     "env": {
-      "REACT_APP_BACKEND_URL": "https://4f133497-9508-4d70-b57f-f5c0197754cc.preview.emergentagent.com"
+      "REACT_APP_BACKEND_URL": "https://bigly-signup.preview.emergentagent.com"
     },
     "webpack": null,
     "eslint": {
