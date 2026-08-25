@@ -42,10 +42,6 @@ const SUBTITLES = {
 };
 const TENURE_OPTIONS = [3, 6, 9, 12];
 const DOC_THRESHOLD = 300000;
-const BANKS = [
-  "HDFC Bank", "ICICI Bank", "State Bank of India", "Axis Bank", "Kotak Mahindra Bank",
-  "Punjab National Bank", "Bank of Baroda", "Yes Bank", "IndusInd Bank", "Canara Bank",
-];
 const RAILS = [
   { key: "UPI AutoPay", title: "UPI AutoPay (Google Pay, PhonePe, Paytm)", icon: Smartphone, badge: "Recommended" },
   { key: "Net Banking eNACH", title: "Net Banking eNACH", icon: Landmark },
@@ -106,15 +102,19 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
   const [reviewChecks, setReviewChecks] = useState({ identity: "done", documents: "done", credit: "pending", decision: "pending" });
   const [offerReady, setOfferReady] = useState(false);
 
-  // Step 5 — sign + autopay + upfront pay
+  // Step 5 — sign + autopay + down-payment (progressive)
   const [esignSent, setEsignSent] = useState(false);
   const [esignOtp, setEsignOtp] = useState("");
   const [agree, setAgree] = useState(false);
+  const [agreementSigned, setAgreementSigned] = useState(false);
   const [rail, setRail] = useState("UPI AutoPay");
-  const [bankName, setBankName] = useState("");
-  const [holder, setHolder] = useState("");
-  const [account, setAccount] = useState("");
-  const [ifsc, setIfsc] = useState("");
+  const [upiId, setUpiId] = useState("");
+  const [netBank, setNetBank] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [autopaySet, setAutopaySet] = useState(false);
+  const [autopayWorking, setAutopayWorking] = useState(false);
   const [upfrontPaid, setUpfrontPaid] = useState(false);
   const [payingUpfront, setPayingUpfront] = useState(false);
 
@@ -137,8 +137,9 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
     setDocs({});
     setReviewChecks({ identity: "done", documents: "done", credit: "pending", decision: "pending" });
     setOfferReady(false);
-    setEsignSent(false); setEsignOtp(""); setAgree(false);
-    setRail("UPI AutoPay"); setBankName(""); setHolder(""); setAccount(""); setIfsc("");
+    setEsignSent(false); setEsignOtp(""); setAgree(false); setAgreementSigned(false);
+    setRail("UPI AutoPay"); setUpiId(""); setNetBank(""); setCardNumber(""); setCardExpiry(""); setCardCvv("");
+    setAutopaySet(false); setAutopayWorking(false);
     setUpfrontPaid(false); setPayingUpfront(false);
     setProcessing(false); setResult(null); setDocView(null);
     // prefill applicant name + email from the logged-in parent's profile
@@ -155,11 +156,6 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
     api.post("/parent/financing/preview", { amount: academicTotal, down_payment: down, tenure })
       .then(({ data }) => setPreview(data)).catch(() => {});
   }, [open, down, tenure, academicTotal]);
-
-  // pre-fill KYC holder name once applicant name is known
-  useEffect(() => {
-    if (!holder && (firstName || lastName)) setHolder(`${firstName} ${lastName}`.trim());
-  }, [firstName, lastName]);
 
   // camera lifecycle
   const stopCam = () => {
@@ -193,6 +189,21 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
     setAadhaarVerified(true); toast.success("Aadhaar identity verified");
   };
   const sendEsign = () => { setEsignSent(true); toast.success("e-Sign OTP sent (simulated)"); };
+  const verifySign = () => {
+    if (!agree) { toast.error("Please accept the Terms & Conditions"); return; }
+    if (esignOtp.trim().length < 4) { toast.error("Enter the e-Sign OTP"); return; }
+    setAgreementSigned(true); toast.success("Agreement signed successfully");
+  };
+  const changeRail = (v) => { setRail(v); setAutopaySet(false); setUpiId(""); setNetBank(""); setCardNumber(""); setCardExpiry(""); setCardCvv(""); };
+  const UPI_RE = /^[a-z0-9.\-_]{2,}@[a-z]{2,}$/i;
+  const railReady = rail === "UPI AutoPay" ? UPI_RE.test(upiId)
+    : rail === "Net Banking eNACH" ? !!netBank
+    : cardNumber.replace(/\s/g, "").length >= 12 && /^\d{2}\/\d{2}$/.test(cardExpiry) && cardCvv.length >= 3;
+  const setupAutopay = () => {
+    if (!railReady) { toast.error("Please complete the mandate details"); return; }
+    setAutopayWorking(true);
+    setTimeout(() => { setAutopayWorking(false); setAutopaySet(true); toast.success("AutoPay mandate set up"); }, 1200);
+  };
 
   // CIBIL check (Step 2)
   const runCibilCheck = async () => {
@@ -258,12 +269,11 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
       aadhaarVerified && liveness === "done" && docsComplete
     );
     if (step === 4) return offerReady;
-    if (step === 5) return agree && esignSent && esignOtp.trim().length >= 4 &&
-      rail && bankName && holder.trim() && account.trim().length >= 6 && ifsc.trim().length >= 6 && upfrontPaid;
+    if (step === 5) return agreementSigned && autopaySet && upfrontPaid;
     return false;
   }, [step, preview, eligConsent, cibilResult, cibilPan, firstName, lastName, dob, fatherName, gender, maritalStatus,
       email, pan, relationship, employment, aadhaarVerified, liveness, docsComplete, offerReady,
-      agree, esignSent, esignOtp, rail, bankName, holder, account, ifsc, upfrontPaid]);
+      agreementSigned, autopaySet, upfrontPaid]);
 
   const next = () => {
     if (!canContinue) { toast.error("Please complete this step to continue."); return; }
@@ -338,7 +348,7 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
         </DialogHeader>
 
         {/* Body */}
-        <Box className="px-6 md:px-8 py-6 max-h-[58vh] overflow-y-auto relative">
+        <Box className="px-6 md:px-8 py-5 max-h-[62vh] overflow-y-auto relative">
           {/* Document overlay (KFS / Agreement / Schedule) */}
           {docView && (
             <DocOverlay
@@ -356,7 +366,7 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
 
           {/* ---------- Step 1: Plan ---------- */}
           {step === 1 && (
-            <Box className="space-y-5" data-testid="step-plan">
+            <Box className="space-y-4" data-testid="step-plan">
               <Typography variant="inherit" component="p" className="text-sm text-slate-500">Set up your 0% EMI plan for <b className="text-brand-navy">{inr(academicTotal)}</b>. Your school is paid 100% upfront.</Typography>
 
               <Box className="rounded-xl border border-[#5548D1]/20 bg-[#EEF0FF] p-4" data-testid="plan-emi-banner">
@@ -385,17 +395,17 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
               {/* Tenure — 4 discrete options instead of a slider */}
               <Box>
                 <Label className="text-sm text-brand-navy">Select Tenure</Label>
-                <Box className="mt-2 grid grid-cols-4 gap-2" data-testid="wiz-tenure-options">
+                <Box className="mt-1.5 grid grid-cols-4 gap-1.5" data-testid="wiz-tenure-options">
                   {TENURE_OPTIONS.map((t) => {
                     const active = tenure === t;
                     return (
                       <Box component="button" type="button" key={t} onClick={() => setTenure(t)}
                         data-testid={`wiz-tenure-${t}`}
-                        className={`rounded-xl border px-2 py-3 text-center transition-colors ${
+                        className={`rounded-lg border py-1.5 text-center transition-colors ${
                           active ? "border-[#5548D1] bg-[#EEF0FF] ring-1 ring-[#5548D1]" : "border-border bg-white hover:border-[#5548D1]/40"
                         }`}>
-                        <Box component="span" className={`block font-head text-lg font-black ${active ? "text-[#5548D1]" : "text-brand-navy"}`}>{t}</Box>
-                        <Box component="span" className="block text-[10px] text-slate-400 uppercase tracking-wider">months</Box>
+                        <Box component="span" className={`font-head text-base font-black ${active ? "text-[#5548D1]" : "text-brand-navy"}`}>{t}</Box>
+                        <Box component="span" className="text-[10px] text-slate-400 ml-1">mo</Box>
                       </Box>
                     );
                   })}
@@ -403,9 +413,9 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
               </Box>
 
               {preview && (
-                <Box className="bg-[#EEF0FF] rounded-xl p-4 space-y-1.5 text-sm" data-testid="plan-summary">
+                <Box className="bg-[#EEF0FF] rounded-xl p-3 space-y-1 text-[13px]" data-testid="plan-summary">
                   <Box className="flex justify-between"><Box component="span" className="text-slate-500">Financed amount</Box><Box component="span" className="font-semibold">{inr(preview.financed_amount)}</Box></Box>
-                  <Box className="flex justify-between"><Box component="span" className="text-slate-500">Monthly EMI</Box><Box component="span" className="font-head font-bold text-[#5548D1] text-lg">{inr(preview.emi)}</Box></Box>
+                  <Box className="flex justify-between"><Box component="span" className="text-slate-500">Monthly EMI</Box><Box component="span" className="font-head font-bold text-[#5548D1] text-base">{inr(preview.emi)}</Box></Box>
                   <Box className="flex justify-between"><Box component="span" className="text-slate-500">Interest</Box><Box component="span" className="font-semibold text-green-600">0%</Box></Box>
                   <Box className="flex justify-between"><Box component="span" className="text-slate-500">Processing fee (incl. GST)</Box><Box component="span" className="font-semibold">{inr(preview.processing_fee)}</Box></Box>
                 </Box>
@@ -415,7 +425,7 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
 
           {/* ---------- Step 2: Eligibility ---------- */}
           {step === 2 && (
-            <Box className="space-y-5" data-testid="step-eligibility">
+            <Box className="space-y-4" data-testid="step-eligibility">
               <Box className="rounded-xl bg-[#EEF0FF] border border-[#5548D1]/15 p-4 flex items-start gap-3">
                 <Box className="h-9 w-9 rounded-lg bg-[#5548D1] text-white flex items-center justify-center shrink-0"><Zap className="h-4 w-4" /></Box>
                 <Box>
@@ -524,7 +534,7 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
 
           {/* ---------- Step 3: Digital KYC ---------- */}
           {step === 3 && (
-            <Box className="space-y-5" data-testid="step-kyc">
+            <Box className="space-y-4" data-testid="step-kyc">
               {/* Student details — autofilled, name + class only */}
               <Box className="rounded-xl border border-border p-4 bg-slate-50/60" data-testid="kyc-student">
                 <Typography variant="inherit" component="p" className="font-head font-bold text-brand-navy text-sm flex items-center gap-2"><GraduationCap className="h-4 w-4 text-[#5548D1]" /> Student Details</Typography>
@@ -738,7 +748,7 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
 
           {/* ---------- Step 4: Review & Offer ---------- */}
           {step === 4 && (
-            <Box className="space-y-5" data-testid="step-review">
+            <Box className="space-y-4" data-testid="step-review">
               {!offerReady ? (
                 <Box className="py-4" data-testid="review-loading">
                   <Box className="flex flex-col items-center text-center">
@@ -776,7 +786,7 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
                   </Box>
 
                   {/* Offer economics */}
-                  <Box className="rounded-2xl border border-[#5548D1]/20 bg-[#EEF0FF] p-5" data-testid="offer-card">
+                  <Box className="rounded-2xl border border-[#5548D1]/20 bg-[#EEF0FF] p-4" data-testid="offer-card">
                     <Box className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
                       <OfferRow label="Financing Amount" value={inr(preview?.financed_amount || 0)} strong />
                       <OfferRow label="Tenure" value={`${tenure} months`} />
@@ -810,104 +820,151 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
             </Box>
           )}
 
-          {/* ---------- Step 5: Sign + AutoPay + Upfront Pay ---------- */}
+          {/* ---------- Step 5: Sign + AutoPay + Down-payment (progressive) ---------- */}
           {step === 5 && (
-            <Box className="space-y-5" data-testid="step-sign-pay">
-              {/* Review & Sign agreement */}
-              <Box className="rounded-xl border border-border p-4">
-                <Typography variant="inherit" component="p" className="font-head font-bold text-brand-navy text-sm flex items-center gap-2"><FileSignature className="h-4 w-4 text-[#5548D1]" /> Review &amp; Sign Agreement</Typography>
-                <Typography variant="inherit" component="p" className="text-xs text-slate-500 mt-1">Read the loan agreement, then e-sign using an OTP.</Typography>
-                <Button variant="outline" onClick={() => setDocView("agreement")} data-testid="signpay-view-agreement" className="mt-3 h-9 rounded-lg border-[#5548D1] text-[#5548D1] hover:bg-[#EEF0FF] font-semibold text-xs">
+            <Box className="space-y-3" data-testid="step-sign-pay">
+              {/* Section 1 — Review & Sign agreement */}
+              <GatedSection n={1} done={agreementSigned} locked={false} icon={FileSignature} title="Review & Sign Agreement" subtitle="Read the loan agreement, then e-sign using an OTP.">
+                <Button variant="outline" onClick={() => setDocView("agreement")} data-testid="signpay-view-agreement" className="h-8 rounded-lg border-[#5548D1] text-[#5548D1] hover:bg-[#EEF0FF] font-semibold text-xs">
                   <ScrollText className="h-3.5 w-3.5 mr-1.5" /> Read Agreement
                 </Button>
-                <Box component="label" className="flex items-start gap-3 cursor-pointer mt-3" data-testid="esign-agree-label">
-                  <Checkbox checked={agree} onCheckedChange={(v) => setAgree(!!v)} className="mt-0.5" data-testid="esign-agree" />
-                  <Box component="span" className="text-sm text-slate-600 leading-relaxed">
+                <Box component="label" className="flex items-start gap-2.5 cursor-pointer mt-2.5" data-testid="esign-agree-label">
+                  <Checkbox checked={agree} onCheckedChange={(v) => setAgree(!!v)} disabled={agreementSigned} className="mt-0.5" data-testid="esign-agree" />
+                  <Box component="span" className="text-[13px] text-slate-600 leading-snug">
                     I accept the <b className="text-brand-navy">Terms &amp; Conditions</b> and confirm all information provided is correct.
                   </Box>
                 </Box>
-                {!esignSent ? (
-                  <Button variant="outline" onClick={sendEsign} disabled={!agree} data-testid="send-esign-btn" className="mt-3 h-10 rounded-lg border-[#5548D1] text-[#5548D1] hover:bg-[#EEF0FF] font-semibold">
+                {agreementSigned ? (
+                  <Box className="mt-2.5 flex items-center gap-1.5 text-sm font-semibold text-green-600" data-testid="agreement-signed"><CheckCircle2 className="h-4 w-4" /> Agreement signed</Box>
+                ) : !esignSent ? (
+                  <Button variant="outline" onClick={sendEsign} disabled={!agree} data-testid="send-esign-btn" className="mt-2.5 h-9 rounded-lg border-[#5548D1] text-[#5548D1] hover:bg-[#EEF0FF] font-semibold text-sm">
                     Send e-Sign OTP
                   </Button>
                 ) : (
-                  <Box className="mt-3">
-                    <Label className="text-xs text-brand-navy">e-Sign OTP</Label>
-                    <Input value={esignOtp} onChange={(e) => setEsignOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))} placeholder="6-digit code" className="rounded-lg mt-1.5 max-w-[200px]" inputMode="numeric" data-testid="esign-otp" />
+                  <Box className="mt-2.5 flex items-end gap-2">
+                    <Box>
+                      <Label className="text-xs text-brand-navy">e-Sign OTP</Label>
+                      <Input value={esignOtp} onChange={(e) => setEsignOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))} placeholder="6-digit code" className="rounded-lg mt-1 max-w-[160px]" inputMode="numeric" data-testid="esign-otp" />
+                    </Box>
+                    <Button onClick={verifySign} data-testid="verify-sign-btn" className="h-9 rounded-lg bg-[#5548D1] hover:bg-[#3F35A8] font-semibold text-sm">Verify &amp; Sign</Button>
                   </Box>
                 )}
-              </Box>
+              </GatedSection>
 
-              {/* Set up EMI AutoPay */}
-              <Box className="rounded-xl border border-border p-4">
-                <Typography variant="inherit" component="p" className="font-head font-bold text-brand-navy text-sm flex items-center gap-2"><RefreshCw className="h-4 w-4 text-[#5548D1]" /> Set Up EMI AutoPay</Typography>
-                <Typography variant="inherit" component="p" className="text-xs text-slate-500 mt-1 mb-3">Auto-debit for your monthly EMIs. Pre-debit reminders sent 5 days prior.</Typography>
-                <RadioGroup value={rail} onValueChange={setRail} className="space-y-2.5" data-testid="wiz-rail-group">
+              {/* Section 2 — Set up EMI AutoPay */}
+              <GatedSection n={2} done={autopaySet} locked={!agreementSigned} icon={RefreshCw} title="Set Up EMI AutoPay" subtitle="Auto-debit for your monthly EMIs. Reminders sent 5 days prior.">
+                <RadioGroup value={rail} onValueChange={changeRail} className="space-y-2" data-testid="wiz-rail-group">
                   {RAILS.map((r) => {
                     const Icon = r.icon; const active = rail === r.key;
                     return (
                       <Box component="label" key={r.key} data-testid={`wiz-rail-${r.key.split(" ")[0].toLowerCase()}`}
-                        className={`flex items-center gap-3 rounded-xl border p-3 cursor-pointer transition-colors ${active ? "border-[#5548D1] bg-[#EEF0FF]" : "border-border hover:border-[#5548D1]/40"}`}>
-                        <RadioGroupItem value={r.key} />
-                        <Box className={`h-8 w-8 rounded-lg flex items-center justify-center ${active ? "bg-[#5548D1] text-white" : "bg-slate-100 text-slate-500"}`}><Icon className="h-4 w-4" /></Box>
-                        <Box component="span" className="flex-1 text-sm font-medium text-brand-navy">{r.title}</Box>
-                        {r.badge && <Box component="span" className="rounded-full bg-[#5548D1] text-white text-[10px] font-bold px-2 py-0.5">{r.badge}</Box>}
+                        className={`flex items-center gap-2.5 rounded-lg border p-2.5 cursor-pointer transition-colors ${active ? "border-[#5548D1] bg-[#EEF0FF]" : "border-border hover:border-[#5548D1]/40"}`}>
+                        <RadioGroupItem value={r.key} disabled={autopaySet} />
+                        <Box className={`h-7 w-7 rounded-lg flex items-center justify-center ${active ? "bg-[#5548D1] text-white" : "bg-slate-100 text-slate-500"}`}><Icon className="h-3.5 w-3.5" /></Box>
+                        <Box component="span" className="flex-1 text-[13px] font-medium text-brand-navy">{r.title}</Box>
+                        {r.badge && <Box component="span" className="rounded-full bg-[#5548D1] text-white text-[9px] font-bold px-2 py-0.5">{r.badge}</Box>}
                       </Box>
                     );
                   })}
                 </RadioGroup>
-                <Box className="grid sm:grid-cols-2 gap-4 mt-4">
-                  <Box>
-                    <Label className="text-sm text-brand-navy">Bank Name</Label>
-                    <Select value={bankName} onValueChange={setBankName}>
-                      <SelectTrigger className="rounded-lg mt-1.5" data-testid="wiz-bank"><SelectValue placeholder="Select bank" /></SelectTrigger>
-                      <SelectContent>{BANKS.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </Box>
-                  <Box>
-                    <Label className="text-sm text-brand-navy">Account Holder Name</Label>
-                    <Input value={holder} onChange={(e) => setHolder(e.target.value)} className="rounded-lg mt-1.5" data-testid="wiz-holder" />
-                  </Box>
-                  <Box>
-                    <Label className="text-sm text-brand-navy">Bank Account Number</Label>
-                    <Input value={account} onChange={(e) => setAccount(e.target.value.replace(/[^0-9]/g, ""))} className="rounded-lg mt-1.5" inputMode="numeric" data-testid="wiz-account" />
-                  </Box>
-                  <Box>
-                    <Label className="text-sm text-brand-navy">IFSC Code</Label>
-                    <Input value={ifsc} onChange={(e) => setIfsc(e.target.value.toUpperCase())} className="rounded-lg mt-1.5" data-testid="wiz-ifsc" />
-                  </Box>
-                </Box>
-              </Box>
 
-              {/* Pay upfront amount */}
-              <Box className="rounded-xl border border-border p-4" data-testid="upfront-pay">
-                <Typography variant="inherit" component="p" className="font-head font-bold text-brand-navy text-sm flex items-center gap-2"><CreditCard className="h-4 w-4 text-[#5548D1]" /> Pay Your Upfront Amount</Typography>
-                <Box className="mt-3 rounded-lg bg-[#EEF0FF] p-3 space-y-1 text-sm">
+                {!autopaySet && (
+                  <Box className="mt-3">
+                    {/* UPI — QR or UPI ID */}
+                    {rail === "UPI AutoPay" && (
+                      <Box className="rounded-lg border border-border p-3" data-testid="autopay-upi">
+                        <Box className="flex flex-col sm:flex-row gap-3 items-center">
+                          <Box className="h-24 w-24 shrink-0 rounded-lg bg-white border border-border grid grid-cols-4 grid-rows-4 gap-0.5 p-1.5" data-testid="upi-qr" aria-label="UPI QR code">
+                            {Array.from({ length: 16 }).map((_, i) => (
+                              <Box key={i} className={`rounded-[1px] ${[0,1,3,4,6,9,11,12,14,15].includes(i) ? "bg-brand-navy" : "bg-transparent"}`} />
+                            ))}
+                          </Box>
+                          <Box className="flex-1 w-full">
+                            <Typography variant="inherit" component="p" className="text-[11px] text-slate-500">Scan the QR in any UPI app to set up AutoPay, or enter your UPI ID.</Typography>
+                            <Box className="mt-2 flex items-end gap-2">
+                              <Box className="flex-1">
+                                <Label className="text-xs text-brand-navy">UPI ID</Label>
+                                <Input value={upiId} onChange={(e) => setUpiId(e.target.value.trim())} placeholder="name@bank" className="rounded-lg mt-1 lowercase" data-testid="upi-id" />
+                              </Box>
+                            </Box>
+                          </Box>
+                        </Box>
+                      </Box>
+                    )}
+
+                    {/* Net Banking — bank quick select */}
+                    {rail === "Net Banking eNACH" && (
+                      <Box className="rounded-lg border border-border p-3" data-testid="autopay-netbank">
+                        <Typography variant="inherit" component="p" className="text-[11px] text-slate-500 mb-2">Select your bank for the eNACH mandate.</Typography>
+                        <Box className="grid grid-cols-3 gap-2">
+                          {["HDFC Bank", "ICICI Bank", "State Bank of India", "Axis Bank", "Kotak Mahindra Bank", "Yes Bank"].map((b) => {
+                            const active = netBank === b;
+                            return (
+                              <Box component="button" type="button" key={b} onClick={() => setNetBank(b)} data-testid={`netbank-${b.split(" ")[0].toLowerCase()}`}
+                                className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-center transition-colors ${active ? "border-[#5548D1] bg-[#EEF0FF] ring-1 ring-[#5548D1]" : "border-border hover:border-[#5548D1]/40"}`}>
+                                <Box className={`h-6 w-6 rounded-md flex items-center justify-center ${active ? "bg-[#5548D1] text-white" : "bg-slate-100 text-slate-500"}`}><Landmark className="h-3.5 w-3.5" /></Box>
+                                <Box component="span" className="text-[10px] font-semibold text-brand-navy leading-tight">{b}</Box>
+                              </Box>
+                            );
+                          })}
+                        </Box>
+                      </Box>
+                    )}
+
+                    {/* Debit Card mandate */}
+                    {rail === "Debit Card Mandate" && (
+                      <Box className="rounded-lg border border-border p-3 grid grid-cols-2 gap-3" data-testid="autopay-card">
+                        <Box className="col-span-2">
+                          <Label className="text-xs text-brand-navy">Card Number</Label>
+                          <Input value={cardNumber} onChange={(e) => setCardNumber(e.target.value.replace(/[^0-9]/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim())} placeholder="1234 5678 9012 3456" className="rounded-lg mt-1" inputMode="numeric" data-testid="card-number" />
+                        </Box>
+                        <Box>
+                          <Label className="text-xs text-brand-navy">Expiry (MM/YY)</Label>
+                          <Input value={cardExpiry} onChange={(e) => { let v = e.target.value.replace(/[^0-9]/g, "").slice(0, 4); if (v.length >= 3) v = v.slice(0, 2) + "/" + v.slice(2); setCardExpiry(v); }} placeholder="MM/YY" className="rounded-lg mt-1" inputMode="numeric" data-testid="card-expiry" />
+                        </Box>
+                        <Box>
+                          <Label className="text-xs text-brand-navy">CVV</Label>
+                          <Input type="password" value={cardCvv} onChange={(e) => setCardCvv(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))} placeholder="•••" className="rounded-lg mt-1" inputMode="numeric" data-testid="card-cvv" />
+                        </Box>
+                      </Box>
+                    )}
+
+                    <Button onClick={setupAutopay} disabled={!railReady || autopayWorking} data-testid="setup-autopay-btn" className="mt-3 h-9 rounded-lg bg-[#5548D1] hover:bg-[#3F35A8] font-semibold text-sm px-5">
+                      {autopayWorking ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Setting up...</> : <>Set Up AutoPay</>}
+                    </Button>
+                  </Box>
+                )}
+                {autopaySet && (
+                  <Box className="mt-2.5 flex items-center gap-1.5 text-sm font-semibold text-green-600" data-testid="autopay-done"><CheckCircle2 className="h-4 w-4" /> AutoPay mandate active — {rail}</Box>
+                )}
+              </GatedSection>
+
+              {/* Section 3 — Complete the down-payment */}
+              <GatedSection n={3} done={upfrontPaid} locked={!autopaySet} icon={CreditCard} title="Complete the down-payment" subtitle="">
+                <Box className="rounded-lg bg-[#EEF0FF] p-2.5 space-y-1 text-[13px]" data-testid="upfront-pay">
                   {down > 0 && <Box className="flex justify-between"><Box component="span" className="text-slate-500">Down payment</Box><Box component="span" className="font-semibold">{inr(down)}</Box></Box>}
                   <Box className="flex justify-between"><Box component="span" className="text-slate-500">Processing fee (incl. GST)</Box><Box component="span" className="font-semibold">{inr(preview?.processing_fee || 0)}</Box></Box>
                   <Box className="flex justify-between border-t border-[#5548D1]/15 pt-1.5 mt-1.5"><Box component="span" className="font-semibold text-brand-navy">Amount Payable Now</Box><Box component="span" className="font-head font-black text-[#5548D1]">{inr(amountNow)}</Box></Box>
                 </Box>
                 {upfrontPaid ? (
-                  <Box className="mt-3 flex items-center gap-2 text-sm font-semibold text-green-600" data-testid="upfront-paid">
-                    <CheckCircle2 className="h-5 w-5" /> Payment successful
-                  </Box>
+                  <Box className="mt-2.5 flex items-center gap-1.5 text-sm font-semibold text-green-600" data-testid="upfront-paid"><CheckCircle2 className="h-4 w-4" /> Payment successful</Box>
                 ) : (
-                  <Button onClick={payUpfront} disabled={payingUpfront} data-testid="pay-upfront-btn" className="mt-3 h-10 rounded-lg bg-[#5548D1] hover:bg-[#3F35A8] font-semibold w-full sm:w-auto px-6">
+                  <Button onClick={payUpfront} disabled={payingUpfront} data-testid="pay-upfront-btn" className="mt-2.5 h-9 rounded-lg bg-[#5548D1] hover:bg-[#3F35A8] font-semibold text-sm w-full sm:w-auto px-6">
                     {payingUpfront ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> Processing...</> : <>Pay {inr(amountNow)}</>}
                   </Button>
                 )}
-              </Box>
+              </GatedSection>
 
-              <Box className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500 border-t border-border pt-4">
-                <Box component="span" className="flex items-center gap-1.5"><BadgeCheck className="h-4 w-4 text-[#5548D1]" /> RBI-regulated NBFC</Box>
-                <Box component="span" className="flex items-center gap-1.5"><Lock className="h-4 w-4 text-[#5548D1]" /> 256-Bit Encryption</Box>
+              <Box className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] text-slate-500 pt-1">
+                <Box component="span" className="flex items-center gap-1.5"><BadgeCheck className="h-3.5 w-3.5 text-[#5548D1]" /> RBI-regulated NBFC</Box>
+                <Box component="span" className="flex items-center gap-1.5"><Lock className="h-3.5 w-3.5 text-[#5548D1]" /> 256-Bit Encryption</Box>
               </Box>
             </Box>
           )}
 
           {/* ---------- Step 6: All set ---------- */}
           {step === 6 && result && (
-            <Box className="space-y-5" data-testid="step-done">
+            <Box className="space-y-4" data-testid="step-done">
               <Box className="flex flex-col items-center text-center py-2">
                 <Box className="h-16 w-16 rounded-2xl bg-emerald-100 flex items-center justify-center"><PartyPopper className="h-8 w-8 text-emerald-600" /></Box>
                 <Typography variant="inherit" component="p" className="mt-3 font-head font-black text-xl text-brand-navy">You&apos;re all set!</Typography>
@@ -963,7 +1020,7 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
             </Button>
             <Button onClick={next} disabled={!canContinue || processing} data-testid="wiz-next" className="h-11 px-6 rounded-lg bg-[#5548D1] hover:bg-[#3F35A8] text-white font-semibold">
               {processing ? "Activating..."
-                : step === 4 ? <><Check className="h-4 w-4 mr-1.5" /> Accept Offer</>
+                : step === 4 ? <><ArrowRight className="h-4 w-4 mr-1.5" /> Proceed</>
                 : step === 5 ? <><ShieldCheck className="h-4 w-4 mr-1.5" /> Confirm &amp; Activate</>
                 : <>Continue <ArrowRight className="h-4 w-4 ml-1.5" /></>}
             </Button>
@@ -977,6 +1034,26 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* -------- Progressive gated section (Step 5) -------- */
+function GatedSection({ n, title, subtitle, icon: Icon, done, locked, children }) {
+  return (
+    <Box className={`rounded-xl border p-3.5 transition-all ${done ? "border-emerald-200 bg-emerald-50/30" : locked ? "border-border bg-slate-50/60" : "border-[#5548D1]/30 bg-white"}`}
+      data-testid={`gated-section-${n}`}>
+      <Box className="flex items-center gap-2.5">
+        <Box component="span" className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${done ? "bg-emerald-500 text-white" : locked ? "bg-slate-200 text-slate-400" : "bg-[#5548D1] text-white"}`}>
+          {done ? <Check className="h-4 w-4" /> : locked ? <Lock className="h-3.5 w-3.5" /> : n}
+        </Box>
+        <Box className="min-w-0">
+          <Typography variant="inherit" component="p" className="font-head font-bold text-brand-navy text-sm flex items-center gap-1.5"><Icon className="h-4 w-4 text-[#5548D1]" /> {title}</Typography>
+          {subtitle && <Typography variant="inherit" component="p" className="text-[11px] text-slate-500">{subtitle}</Typography>}
+        </Box>
+      </Box>
+      {!locked && <Box className="mt-3">{children}</Box>}
+      {locked && <Typography variant="inherit" component="p" className="mt-2 text-[11px] text-slate-400 italic">Complete the previous step to unlock.</Typography>}
+    </Box>
   );
 }
 

@@ -1,9 +1,9 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
   "/app/discover/page": "app/app/discover/page.js",
+  "/app/mandate/page": "app/app/mandate/page.js",
   "/app/financing/page": "app/app/financing/page.js",
   "/app/history/page": "app/app/history/page.js",
-  "/app/mandate/page": "app/app/mandate/page.js",
   "/app/page": "app/app/page.js",
   "/app/programs/page": "app/app/programs/page.js",
   "/app/psychometry/attempt/page": "app/app/psychometry/attempt/page.js",

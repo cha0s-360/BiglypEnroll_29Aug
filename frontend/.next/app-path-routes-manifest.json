@@ -1,9 +1,9 @@
 {
   "/_not-found/page": "/_not-found",
   "/app/discover/page": "/app/discover",
+  "/app/mandate/page": "/app/mandate",
   "/app/financing/page": "/app/financing",
   "/app/history/page": "/app/history",
-  "/app/mandate/page": "/app/mandate",
   "/app/page": "/app",
   "/app/programs/page": "/app/programs",
   "/app/psychometry/attempt/page": "/app/psychometry/attempt",
