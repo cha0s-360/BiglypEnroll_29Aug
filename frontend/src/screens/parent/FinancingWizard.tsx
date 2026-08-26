@@ -1092,12 +1092,12 @@ function DocOverlay({ kind, onClose, preview, result, applicant, studentName, te
               </Box>
             ))}
           </Box>
-        ) : (
+        ) : kind === "kfs" ? (
           <>
             <Box className="rounded-lg bg-slate-50 border border-border p-3 space-y-1.5">
               <Row k="Applicant" v={applicant || "—"} />
               <Row k="Student" v={studentName || "—"} />
-              <Row k="Lender" v="Biglyp NBFC Partner (RBI-regulated)" />
+              <Row k="Lender" v="CSB Bank Limited" />
               <Row k="School Fee" v={inr(academicTotal)} />
               <Row k="Down Payment" v={inr(down)} />
               <Row k="Financed Amount" v={inr(financed)} />
@@ -1107,16 +1107,21 @@ function DocOverlay({ kind, onClose, preview, result, applicant, studentName, te
               <Row k="Processing Fee (incl. GST)" v={inr(pf)} />
               <Row k="Total Repayment" v={inr(financed)} />
             </Box>
-            {kind === "kfs" ? (
-              <Typography variant="inherit" component="p" className="text-xs text-slate-500 leading-relaxed">
-                This Key Fact Statement summarises the key terms of your 0% interest education-fee financing facility as mandated by the RBI Digital Lending Guidelines. There is no interest charged on this facility; a one-time processing fee (inclusive of GST) applies as shown above. Prepayment is allowed with no foreclosure charges. Missed EMIs may attract nominal late-payment fees and be reported to credit bureaus.
-              </Typography>
-            ) : (
-              <Typography variant="inherit" component="p" className="text-xs text-slate-500 leading-relaxed">
-                This Loan Agreement is entered into between the Applicant and Biglyp&apos;s RBI-regulated NBFC lending partner for the education-fee financing facility described above. By e-signing, the Applicant authorises auto-debit of monthly EMIs via the selected mandate, confirms the accuracy of all KYC information, and agrees to the terms of repayment, the grievance-redressal policy, and the privacy policy. The school is disbursed 100% of the financed amount upfront.
-              </Typography>
-            )}
+            <Typography variant="inherit" component="p" className="text-xs text-slate-500 leading-relaxed">
+              This Key Fact Statement summarises the key terms of your 0% interest education-fee financing facility as mandated by the RBI Digital Lending Guidelines. There is no interest charged on this facility; a one-time processing fee (inclusive of GST) applies as shown above. Prepayment is allowed with no foreclosure charges. Missed EMIs may attract nominal late-payment fees and be reported to credit bureaus.
+            </Typography>
           </>
+        ) : (
+          <AgreementDoc
+            applicant={applicant}
+            studentName={studentName}
+            tenure={tenure}
+            down={down}
+            academicTotal={academicTotal}
+            financed={financed}
+            emi={emi}
+            agreementId={result?.agreement_id || result?.receipt_no}
+          />
         )}
       </Box>
     </Box>
@@ -1127,6 +1132,179 @@ function Row({ k, v }) {
     <Box className="flex justify-between gap-4">
       <Box component="span" className="text-slate-500">{k}</Box>
       <Box component="span" className="font-semibold text-brand-navy text-right">{v}</Box>
+    </Box>
+  );
+}
+
+/* -------- Full CSB Bank Limited School Fee Financing Loan Agreement -------- */
+function AgreementDoc({ applicant, studentName, tenure, down, academicTotal, financed, emi, agreementId }) {
+  const HANDLING = 850;
+  const GST = Math.round(HANDLING * 0.18); // 18% GST => ₹153
+  const HANDLING_TOTAL = HANDLING + GST; // ₹1,003
+  const today = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+
+  const clauseHead = "font-head font-bold text-brand-navy text-[13px] mt-4 mb-1.5";
+  const para = "text-[12px] text-slate-600 leading-relaxed";
+
+  const declarations = [
+    "confirms that all information and documents submitted for KYC, credit assessment and loan processing are true, accurate and complete;",
+    "confirms that the loan proceeds shall be used solely for the stated school-fee financing purpose;",
+    "authorises the Lender and its authorised service providers to verify KYC and other information and, where legally permitted, obtain / share information with credit information companies and other authorised entities;",
+    "authorises auto-debit of the EMIs through the selected mandate;",
+    "agrees to comply with the repayment schedule and all applicable terms of the loan;",
+    "acknowledges that the loan remains repayable notwithstanding any dispute between the Applicant and the school concerning services, admission, withdrawal or other matters, subject to applicable law and the terms of the financing arrangement; and",
+    "confirms that the Applicant has reviewed and understood the applicable KFS, repayment schedule, charges and other applicable terms before accepting the facility.",
+  ];
+
+  return (
+    <Box data-testid="agreement-doc" className="text-slate-700">
+      {/* Header */}
+      <Box className="text-center border-b border-border pb-3">
+        <Typography variant="inherit" component="p" className="font-head font-black text-brand-navy text-[15px] tracking-tight">
+          SCHOOL FEE FINANCING LOAN AGREEMENT
+        </Typography>
+        <Box className="mt-1.5 flex items-center justify-center gap-4 text-[11px] text-slate-500">
+          <Box component="span"><b className="text-slate-600">Date:</b> {today}</Box>
+          <Box component="span" className="h-3 w-px bg-border" />
+          <Box component="span"><b className="text-slate-600">Loan / Application No.:</b> <span className="font-mono">{agreementId || "To be generated on activation"}</span></Box>
+        </Box>
+      </Box>
+
+      {/* Recital */}
+      <Typography variant="inherit" component="p" className={`${para} mt-3`}>
+        This School Fee Financing Loan Agreement (&quot;Agreement&quot;) is entered into between{" "}
+        <b className="text-brand-navy">CSB Bank Limited</b> (&quot;Lender / Bank&quot;) and{" "}
+        <b className="text-brand-navy">{applicant || "the Applicant"}</b> (&quot;Applicant / Borrower&quot;) for financing
+        the school fees of <b className="text-brand-navy">{studentName || "the Student"}</b> (&quot;Student&quot;),
+        subject to the terms and conditions set out below.
+      </Typography>
+
+      {/* 1. Loan Details */}
+      <Typography variant="inherit" component="p" className={clauseHead}>1. Loan Details</Typography>
+      <Box className="rounded-lg bg-slate-50 border border-border p-3 space-y-1.5">
+        <Row k="Applicant / Borrower" v={applicant || "—"} />
+        <Row k="Student" v={studentName || "—"} />
+        <Row k="Lender" v="CSB Bank Limited" />
+        <Row k="Total School Fee" v={inr(academicTotal)} />
+        <Row k="Down Payment" v={inr(down)} />
+        <Row k="Financed Amount" v={inr(financed)} />
+        <Row k="Tenure" v={`${tenure} months`} />
+        <Row k="Interest Rate" v="0% p.a." />
+        <Row k="Monthly EMI" v={`${inr(emi)}*`} />
+        <Row k="Handling Charges" v={`₹850 + applicable GST (${inr(HANDLING_TOTAL)} incl. 18% GST)`} />
+        <Row k="Total Principal Repayment" v={inr(financed)} />
+      </Box>
+      <Typography variant="inherit" component="p" className="text-[11px] text-slate-400 italic mt-1.5 leading-relaxed">
+        *The final EMI schedule and due dates shall be as specified in the applicable Key Facts Statement (KFS) / sanction
+        communication. Any rounding adjustment in the final instalment, if applicable, shall be reflected in the repayment schedule.
+      </Typography>
+
+      {/* 2. Purpose and Disbursement */}
+      <Typography variant="inherit" component="p" className={clauseHead}>2. Purpose and Disbursement</Typography>
+      <Typography variant="inherit" component="p" className={para}>
+        The loan facility is sanctioned solely for payment of the Student&apos;s school fees. Upon fulfilment of all applicable
+        conditions and completion of documentation, the 100% financed amount of {inr(financed)} shall be disbursed upfront to the
+        school towards the Student&apos;s eligible school fees. The Applicant acknowledges that the {inr(down)} down payment (if any)
+        is to be paid separately by the Applicant towards the total school fee of {inr(academicTotal)}.
+      </Typography>
+
+      {/* 3. Repayment */}
+      <Typography variant="inherit" component="p" className={clauseHead}>3. Repayment</Typography>
+      <Typography variant="inherit" component="p" className={para}>
+        The Applicant agrees to repay the financed amount in {tenure} monthly EMIs of {inr(emi)}, subject to the final repayment
+        schedule issued by the Lender. The applicable interest rate for the facility is 0% per annum, and accordingly the total
+        principal repayment under the facility is {inr(financed)}, excluding the applicable handling charges and GST.
+        The Applicant authorises the Lender and / or its authorised service providers to collect the EMIs through the selected
+        NACH / e-mandate / auto-debit / payment mandate. The Applicant shall ensure that sufficient funds are available in the
+        designated account on each EMI due date. Any applicable charges arising from failed mandates, delayed payments, statutory
+        levies, or other permitted charges shall be governed by the applicable KFS, sanction terms and Lender&apos;s policies.
+      </Typography>
+
+      {/* 4. Applicant Declarations and Undertakings */}
+      <Typography variant="inherit" component="p" className={clauseHead}>4. Applicant Declarations and Undertakings</Typography>
+      <Typography variant="inherit" component="p" className={para}>By electronically signing this Agreement, the Applicant:</Typography>
+      <Box component="ol" className="mt-1.5 space-y-1.5 pl-1">
+        {declarations.map((d, i) => (
+          <Box component="li" key={i} className="flex gap-2 text-[12px] text-slate-600 leading-relaxed">
+            <Box component="span" className="font-semibold text-[#5548D1] shrink-0">{i + 1}.</Box>
+            <Box component="span">{d}</Box>
+          </Box>
+        ))}
+      </Box>
+
+      {/* 5. Fees and Charges */}
+      <Typography variant="inherit" component="p" className={clauseHead}>5. Fees and Charges</Typography>
+      <Typography variant="inherit" component="p" className={para}>
+        The Applicant shall pay the applicable handling charge of ₹850 plus GST (totalling {inr(HANDLING_TOTAL)} inclusive of 18% GST),
+        in accordance with the applicable KFS / charge schedule. No interest shall accrue on the financed amount at the stated
+        contractual rate of 0% p.a., subject to the terms of this Agreement and applicable law.
+      </Typography>
+
+      {/* 6. Default */}
+      <Typography variant="inherit" component="p" className={clauseHead}>6. Default</Typography>
+      <Typography variant="inherit" component="p" className={para}>
+        If any EMI is not paid on its due date, the Lender may take such action as is permitted under the applicable loan terms,
+        KFS, mandate terms and applicable law, including recovery of overdue amounts and applicable permitted charges. Any applicable
+        penal / late-payment charges, if any, shall be as expressly disclosed in the applicable KFS or sanction documentation and
+        shall not be treated as interest on the loan unless permitted under applicable law.
+      </Typography>
+
+      {/* 7. Privacy and Data Consent */}
+      <Typography variant="inherit" component="p" className={clauseHead}>7. Privacy and Data Consent</Typography>
+      <Typography variant="inherit" component="p" className={para}>
+        The Applicant consents to the collection, verification, processing, storage and sharing of personal and financial information
+        for purposes connected with the loan, including KYC, underwriting, servicing, repayment, fraud prevention, regulatory compliance
+        and credit reporting, in accordance with applicable law and the Lender&apos;s privacy policy. CSB Bank&apos;s published privacy
+        policy provides for processing and sharing of customer information for purposes including verification, credit reporting, risk
+        management and regulatory requirements.
+      </Typography>
+
+      {/* 8. Grievance Redressal */}
+      <Typography variant="inherit" component="p" className={clauseHead}>8. Grievance Redressal</Typography>
+      <Typography variant="inherit" component="p" className={para}>
+        The Applicant may raise any complaint or grievance through the Lender&apos;s designated grievance-redressal channels. Where the
+        complaint is not satisfactorily resolved within the applicable period, the Applicant may pursue the escalation mechanisms available
+        under applicable RBI regulations. CSB Bank currently provides a multi-level grievance-redressal mechanism and escalation to the RBI
+        Integrated Ombudsman framework where applicable.
+      </Typography>
+
+      {/* 9. Governing Terms */}
+      <Typography variant="inherit" component="p" className={clauseHead}>9. Governing Terms</Typography>
+      <Typography variant="inherit" component="p" className={para}>
+        This Agreement, together with the applicable Key Facts Statement (KFS), sanction letter, repayment schedule, mandate terms and other
+        loan documentation, constitutes the terms governing the facility. In case of any inconsistency, the applicable regulatory requirements
+        and the final executed loan documentation / KFS shall prevail. This Agreement shall be governed by the laws of India and subject to
+        applicable regulatory requirements.
+      </Typography>
+
+      {/* 10. Electronic Acceptance */}
+      <Typography variant="inherit" component="p" className={clauseHead}>10. Electronic Acceptance</Typography>
+      <Typography variant="inherit" component="p" className={para}>
+        The Applicant agrees that electronic signing / e-signing, OTP-based acceptance or other approved electronic authentication shall
+        constitute valid acceptance of this Agreement and shall have the same effect as a physical signature, to the extent permitted by applicable law.
+      </Typography>
+
+      {/* Signature block */}
+      <Box className="mt-5 pt-4 border-t border-border grid grid-cols-2 gap-4">
+        <Box>
+          <Typography variant="inherit" component="p" className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Applicant / Borrower</Typography>
+          <Typography variant="inherit" component="p" className="text-[12px] text-slate-600 mt-1.5">Name: <b className="text-brand-navy">{applicant || "—"}</b></Typography>
+          <Typography variant="inherit" component="p" className="text-[12px] text-slate-400 mt-1">Signature: _______________________</Typography>
+          <Typography variant="inherit" component="p" className="text-[12px] text-slate-400 mt-1">Date: {today}</Typography>
+        </Box>
+        <Box>
+          <Typography variant="inherit" component="p" className="text-[11px] font-bold uppercase tracking-wider text-slate-500">For CSB Bank Limited</Typography>
+          <Typography variant="inherit" component="p" className="text-[12px] text-slate-400 mt-1.5">Authorised Signatory: ____________</Typography>
+          <Typography variant="inherit" component="p" className="text-[12px] text-slate-400 mt-1">Date: {today}</Typography>
+        </Box>
+      </Box>
+
+      <Box className="mt-4 rounded-lg bg-[#EEF0FF] border border-[#5548D1]/20 p-3">
+        <Typography variant="inherit" component="p" className="text-[11px] text-slate-600 leading-relaxed">
+          <b className="text-brand-navy">Acknowledgement:</b> By e-signing this Agreement, the Applicant confirms that they have read,
+          understood and accepted the above terms and authorises the applicable repayment mandate for the {tenure}-month school-fee financing facility.
+        </Typography>
+      </Box>
     </Box>
   );
 }
