@@ -548,6 +548,16 @@ async def compute_pending(sid: str, student: dict):
             "frequency": h["frequency"],
             "paid": h["id"] in paid_ids,
         })
+    # Per-student extra/premium fee heads (additive) — used to seed high-value
+    # (> ₹3 lakh) students so the document-upload financing flow can be tested.
+    for h in student.get("extra_fee_heads", []):
+        items.append({
+            "fee_head_id": h["id"],
+            "name": h["name"],
+            "amount": h["amount"],
+            "frequency": h.get("frequency", "Yearly"),
+            "paid": h["id"] in paid_ids,
+        })
     return items
 
 
@@ -1210,6 +1220,25 @@ async def seed():
             "program": "", "parent_id": parent_id, "school_id": school_id,
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
+
+    # Two high-value (> ₹3 lakh) students linked to the parent (idempotent) — so the
+    # document-upload financing flow (financing above ₹3 lakh) can be tested. A large
+    # "International Curriculum Fee" pushes their financeable total well past ₹3 lakh.
+    premium_students = [
+        {"name": "Reyansh Kapoor", "grade": "Class 11", "roll_no": "H-2002"},
+        {"name": "Saanvi Joshi", "grade": "Class 12", "roll_no": "H-2003"},
+    ]
+    for ps in premium_students:
+        if not await db.students.find_one({"school_id": school_id, "name": ps["name"]}):
+            await db.students.insert_one({
+                "name": ps["name"], "grade": ps["grade"], "roll_no": ps["roll_no"],
+                "program": "", "parent_id": parent_id, "school_id": school_id,
+                "extra_fee_heads": [
+                    {"id": str(uuid.uuid4()), "name": "International Curriculum Fee",
+                     "amount": 250000, "frequency": "Yearly"},
+                ],
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
 
     logger.info("Seed complete")
 

@@ -782,7 +782,7 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
                 <Box className="space-y-4" data-testid="review-offer">
                   <Box className="flex items-center gap-2 text-emerald-700">
                     <CheckCircle2 className="h-6 w-6" />
-                    <Typography variant="inherit" component="p" className="font-head font-black text-lg text-brand-navy">Your financing offer is ready</Typography>
+                    <Typography variant="inherit" component="p" className="font-head font-black text-lg text-brand-navy">Your Fee payment option is ready</Typography>
                   </Box>
 
                   {/* Offer economics */}
@@ -792,7 +792,6 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
                       <OfferRow label="Tenure" value={`${tenure} months`} />
                       <OfferRow label="EMI" value={`${inr(preview?.emi || 0)}/mo`} strong accent />
                       <OfferRow label="Interest Rate" value="0%" />
-                      <OfferRow label="APR" value={`${preview?.apr ?? 0}%`} />
                       <OfferRow label="Processing Fee" value={inr(preview?.processing_fee || 0)} />
                       <OfferRow label="Total Repayment" value={inr(preview?.total_repayment || 0)} />
                       <OfferRow label="Amount Payable Now" value={inr(amountNow)} />
@@ -808,9 +807,6 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
 
                   {/* Documents */}
                   <Box className="flex flex-wrap gap-3">
-                    <Button variant="outline" onClick={() => setDocView("kfs")} data-testid="view-kfs-btn" className="h-10 rounded-lg border-[#5548D1] text-[#5548D1] hover:bg-[#EEF0FF] font-semibold">
-                      <ScrollText className="h-4 w-4 mr-1.5" /> View KFS
-                    </Button>
                     <Button variant="outline" onClick={() => setDocView("agreement")} data-testid="view-agreement-btn" className="h-10 rounded-lg border-[#5548D1] text-[#5548D1] hover:bg-[#EEF0FF] font-semibold">
                       <FileSignature className="h-4 w-4 mr-1.5" /> View Loan Agreement
                     </Button>
@@ -897,7 +893,7 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
                       <Box className="rounded-lg border border-border p-3" data-testid="autopay-netbank">
                         <Typography variant="inherit" component="p" className="text-[11px] text-slate-500 mb-2">Select your bank for the eNACH mandate.</Typography>
                         <Box className="grid grid-cols-3 gap-2">
-                          {["HDFC Bank", "ICICI Bank", "State Bank of India", "Axis Bank", "Kotak Mahindra Bank", "Yes Bank"].map((b) => {
+                          {["CSB Bank", "HDFC Bank", "ICICI Bank", "State Bank of India", "Axis Bank", "Kotak Mahindra Bank"].map((b) => {
                             const active = netBank === b;
                             return (
                               <Box component="button" type="button" key={b} onClick={() => setNetBank(b)} data-testid={`netbank-${b.split(" ")[0].toLowerCase()}`}
@@ -1072,7 +1068,6 @@ function DocOverlay({ kind, onClose, preview, result, applicant, studentName, te
   const financed = result?.financed_amount ?? preview?.financed_amount ?? 0;
   const emi = result?.emi ?? preview?.emi ?? 0;
   const pf = result?.processing_fee ?? preview?.processing_fee ?? 0;
-  const apr = result?.apr ?? preview?.apr ?? 0;
   const schedule = result?.schedule || preview?.schedule || [];
   const title = kind === "kfs" ? "Key Fact Statement (KFS)" : kind === "agreement" ? "Loan Agreement" : "Repayment Schedule";
 
@@ -1109,7 +1104,6 @@ function DocOverlay({ kind, onClose, preview, result, applicant, studentName, te
               <Row k="Tenure" v={`${tenure} months`} />
               <Row k="Monthly EMI" v={inr(emi)} />
               <Row k="Interest Rate" v="0% p.a." />
-              <Row k="APR" v={`${apr}%`} />
               <Row k="Processing Fee (incl. GST)" v={inr(pf)} />
               <Row k="Total Repayment" v={inr(financed)} />
             </Box>
