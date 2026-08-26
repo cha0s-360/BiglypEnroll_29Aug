@@ -15,7 +15,7 @@ import os
 from datetime import datetime, timedelta
 
 # Backend URL from frontend/.env
-BASE_URL = "https://bigly-signup.preview.emergentagent.com/api"
+BASE_URL = "https://enroll-system-22.preview.emergentagent.com/api"
 
 # Test credentials from test_credentials.md
 SCHOOL_EMAIL = "school@biglyp.com"

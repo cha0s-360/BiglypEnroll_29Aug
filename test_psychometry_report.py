@@ -8,7 +8,7 @@ import json
 import re
 
 # Backend URL from frontend/.env
-BASE_URL = "https://bigly-signup.preview.emergentagent.com/api"
+BASE_URL = "https://enroll-system-22.preview.emergentagent.com/api"
 
 # Test credentials from test_credentials.md
 PARENT_EMAIL = "parent@biglyp.com"
