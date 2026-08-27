@@ -7,7 +7,7 @@ import requests
 import math
 
 # Use the production URL from frontend/.env
-BASE_URL = "https://enroll-system-22.preview.emergentagent.com"
+BASE_URL = "https://github-preview-63.preview.emergentagent.com"
 API = f"{BASE_URL}/api"
 
 # Test credentials from test_credentials.md
