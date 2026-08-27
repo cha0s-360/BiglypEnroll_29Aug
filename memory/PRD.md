@@ -110,3 +110,12 @@ Per user-attached PDFs (Psychometry flow + ExploreX detailed report):
 - Lender named **CSB Bank Limited**. Structure: header (date + loan/app no.), recital, 1. Loan Details table, and clauses 2–10 (Purpose & Disbursement, Repayment, Applicant Declarations (7-item list), Fees & Charges, Default, Privacy & Data Consent, Grievance Redressal, Governing Terms, Electronic Acceptance) + signature block + acknowledgement.
 - Handling charge fixed at **₹850 + GST** (shows ₹1,003 incl. 18% GST). All values (applicant, student, amounts, tenure, EMI, financed) are dynamically populated from wizard state.
 - New component `AgreementDoc` in `src/screens/parent/FinancingWizard.tsx`. KFS view lender label also updated to CSB Bank Limited. Verified via isolated render screenshot; lint clean; frontend production build.
+
+## Update (2025-07) — School Fee Financing Gap List, PHASE 1: Financing Banks CRUD (OPS)
+- New OPS-driven **Financing Banks** configuration (drives the parent 0% EMI flow; nothing hardcoded).
+- Backend (`backend/credit.py`), collection `financing_banks`, router prefix `/api/credit`:
+  - GET `/financing-banks` (admin), POST `/financing-banks` (admin), GET `/financing-banks/{bid}` (any authed — full-config lookup for later phases), PUT `/financing-banks/{bid}` (admin), DELETE `/financing-banks/{bid}` (admin). ADMIN_ROLES = super_admin, credit_ops.
+  - Fields: name, active, advance_emi, min_loan_amount (default 25000), location_match_aadhaar, name_match_rule (profile|pan|aadhaar), income_proof{cibil_threshold, income_threshold, required_matrix{high_cibil_high_income, high_cibil_low_income, low_cibil_high_income, low_cibil_low_income}}, fund_release{multi_account_allowed, vendor_external_allowed}.
+  - One default bank seeded: "CSB Bank Limited". Backend tested 24/24 pass.
+- Frontend: new `/credit/banks` screen (`src/screens/credit/FinancingBanks.tsx`, route `src/app/credit/banks/page.tsx`), nav item "Financing Banks" added to CreditLayout (admin-only). List view + Add/Edit dialog, all fields editable post-creation, delete supported. No approval workflow. Verified via screenshots.
+- Phase 1 done. Later phases (Screen 1 amount/advance-EMI, Screen 2 income-proof + NACH, Screen 3 KYC priority/name-match/decline states) will consume GET-by-ID config.

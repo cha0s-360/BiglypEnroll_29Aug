@@ -22,6 +22,7 @@ export function CreditLayout({ children, title, subtitle }) {
     { to: "/credit/applications", label: "Applications", icon: FolderKanban, testid: "cnav-apps" },
     ...(!isLender ? [{ to: "/credit/new", label: "New Application", icon: FilePlus2, testid: "cnav-new" }] : []),
     ...(isAdmin ? [{ to: "/credit/policies", label: "Lender Policies", icon: SlidersHorizontal, testid: "cnav-policies" }] : []),
+    ...(isAdmin ? [{ to: "/credit/banks", label: "Financing Banks", icon: Landmark, testid: "cnav-banks" }] : []),
   ];
 
   return (

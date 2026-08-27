@@ -126,6 +126,12 @@
       "namedRegex": "^/credit/applications(?:/)?$"
     },
     {
+      "page": "/credit/banks",
+      "regex": "^/credit/banks(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/credit/banks(?:/)?$"
+    },
+    {
       "page": "/credit/new",
       "regex": "^/credit/new(?:/)?$",
       "routeKeys": {},

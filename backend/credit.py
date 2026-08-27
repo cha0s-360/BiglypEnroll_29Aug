@@ -131,6 +131,35 @@ DEFAULT_LENDERS = [
         "occupations": ["any"], "interest_rate": 16.5, "processing_fee_pct": 2.0, "max_ltv": 100}},
 ]
 
+# ---- Phase 1: financing-bank configuration (drives the parent financing flow) ----
+# Default income-proof requirement matrix, keyed by (CIBIL vs threshold) x (income vs threshold).
+DEFAULT_INCOME_PROOF_MATRIX = {
+    "high_cibil_high_income": False,  # CIBIL >= threshold AND income >= threshold
+    "high_cibil_low_income": True,    # CIBIL >= threshold AND income <  threshold
+    "low_cibil_high_income": True,    # CIBIL <  threshold AND income >= threshold
+    "low_cibil_low_income": True,     # CIBIL <  threshold AND income <  threshold
+}
+
+DEFAULT_FINANCING_BANKS = [
+    {
+        "name": "CSB Bank Limited",
+        "active": True,
+        "advance_emi": True,
+        "min_loan_amount": 25000,
+        "location_match_aadhaar": True,
+        "name_match_rule": "aadhaar",  # profile | pan | aadhaar
+        "income_proof": {
+            "cibil_threshold": 750,
+            "income_threshold": 750000,
+            "required_matrix": dict(DEFAULT_INCOME_PROOF_MATRIX),
+        },
+        "fund_release": {
+            "multi_account_allowed": False,
+            "vendor_external_allowed": False,
+        },
+    },
+]
+
 _seeded = False
 
 
@@ -159,6 +188,11 @@ async def ensure_seed():
             "name": "Credit Ops", "email": "creditops@biglyp.com",
             "password_hash": bcrypt.hashpw(b"creditops123", bcrypt.gensalt()).decode(),
             "role": "credit_ops", "school_id": None, "created_at": now_iso()})
+    if await db.financing_banks.count_documents({}) == 0:
+        for b in DEFAULT_FINANCING_BANKS:
+            await db.financing_banks.insert_one({
+                "id": str(uuid.uuid4()), **b,
+                "created_at": now_iso(), "updated_at": now_iso()})
     _seeded = True
 
 
@@ -380,6 +414,38 @@ class LenderIn(BaseModel):
     policy: dict
 
 
+# ---- Phase 1: financing-bank configuration models ----
+class IncomeProofMatrix(BaseModel):
+    # For each (CIBIL vs threshold) x (income vs threshold) combination:
+    # is income proof REQUIRED?
+    high_cibil_high_income: bool = False
+    high_cibil_low_income: bool = True
+    low_cibil_high_income: bool = True
+    low_cibil_low_income: bool = True
+
+
+class IncomeProofCriteria(BaseModel):
+    cibil_threshold: int = 750
+    income_threshold: float = 750000
+    required_matrix: IncomeProofMatrix = Field(default_factory=IncomeProofMatrix)
+
+
+class FundReleaseRules(BaseModel):
+    multi_account_allowed: bool = False
+    vendor_external_allowed: bool = False
+
+
+class FinancingBankIn(BaseModel):
+    name: str
+    active: bool = True
+    advance_emi: bool = False
+    min_loan_amount: float = 25000
+    location_match_aadhaar: bool = False
+    name_match_rule: str = "aadhaar"  # profile | pan | aadhaar
+    income_proof: IncomeProofCriteria = Field(default_factory=IncomeProofCriteria)
+    fund_release: FundReleaseRules = Field(default_factory=FundReleaseRules)
+
+
 class CheckerIn(BaseModel):
     decision: str  # approve | reject
     remark: str = ""
@@ -431,6 +497,55 @@ async def update_lender(lid: str, body: LenderIn, user: dict = Depends(require_r
 @credit_router.delete("/lenders/{lid}")
 async def delete_lender(lid: str, user: dict = Depends(require_roles(*ADMIN_ROLES))):
     await db.lenders.delete_one({"id": lid})
+    return {"ok": True}
+
+
+# --------------------------------------------------- financing banks (Phase 1) -
+# Pure CRUD for banks that fund the parent 0% EMI financing flow. The full config
+# per bank is looked up by later flow buckets via GET /financing-banks/{bid}.
+@credit_router.get("/financing-banks")
+async def list_financing_banks(user: dict = Depends(require_roles(*ADMIN_ROLES))):
+    await ensure_seed()
+    out = []
+    async for b in db.financing_banks.find():
+        out.append(clean(b))
+    return out
+
+
+@credit_router.post("/financing-banks")
+async def create_financing_bank(body: FinancingBankIn, user: dict = Depends(require_roles(*ADMIN_ROLES))):
+    await ensure_seed()
+    doc = {"id": str(uuid.uuid4()), **body.model_dump(),
+           "created_at": now_iso(), "updated_at": now_iso()}
+    await db.financing_banks.insert_one(doc)
+    return clean(doc)
+
+
+@credit_router.get("/financing-banks/{bid}")
+async def get_financing_bank(bid: str, user: dict = Depends(get_current_user)):
+    """Full config lookup for a single bank — consumed by later flow buckets."""
+    await ensure_seed()
+    doc = await db.financing_banks.find_one({"id": bid})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Financing bank not found")
+    return clean(doc)
+
+
+@credit_router.put("/financing-banks/{bid}")
+async def update_financing_bank(bid: str, body: FinancingBankIn, user: dict = Depends(require_roles(*ADMIN_ROLES))):
+    existing = await db.financing_banks.find_one({"id": bid})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Financing bank not found")
+    await db.financing_banks.update_one(
+        {"id": bid}, {"$set": {**body.model_dump(), "updated_at": now_iso()}})
+    return clean(await db.financing_banks.find_one({"id": bid}))
+
+
+@credit_router.delete("/financing-banks/{bid}")
+async def delete_financing_bank(bid: str, user: dict = Depends(require_roles(*ADMIN_ROLES))):
+    res = await db.financing_banks.delete_one({"id": bid})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Financing bank not found")
     return {"ok": True}
 
 
