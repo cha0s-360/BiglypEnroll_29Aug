@@ -1001,6 +1001,15 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
           )}
         </Box>
 
+        {/* Mandatory KFS access — kept small & unobtrusive so it doesn't distract from Proceed */}
+        {step === 4 && offerReady && (
+          <Box className="px-6 md:px-8 pt-3 flex justify-start">
+            <Button variant="ghost" size="sm" onClick={() => setDocView("kfs")} data-testid="view-kfs-btn" className="h-7 px-2 text-[11px] text-slate-500 hover:text-[#5548D1] hover:bg-[#EEF0FF] font-medium">
+              <ScrollText className="h-3.5 w-3.5 mr-1" /> View Key Facts Statement (KFS)
+            </Button>
+          </Box>
+        )}
+
         {/* Footer actions */}
         {step <= 5 ? (
           <Box className="px-6 md:px-8 py-4 border-t border-border flex items-center justify-between gap-3 bg-white">
@@ -1060,7 +1069,6 @@ function OfferRow({ label, value, strong = false, accent = false }) {
 function DocOverlay({ kind, onClose, preview, result, applicant, studentName, tenure, down, academicTotal }) {
   const financed = result?.financed_amount ?? preview?.financed_amount ?? 0;
   const emi = result?.emi ?? preview?.emi ?? 0;
-  const pf = result?.processing_fee ?? preview?.processing_fee ?? 0;
   const schedule = result?.schedule || preview?.schedule || [];
   const title = kind === "kfs" ? "Key Fact Statement (KFS)" : kind === "agreement" ? "Loan Agreement" : "Repayment Schedule";
 
@@ -1086,24 +1094,50 @@ function DocOverlay({ kind, onClose, preview, result, applicant, studentName, te
             ))}
           </Box>
         ) : kind === "kfs" ? (
-          <>
+          <Box data-testid="kfs-doc" className="text-slate-700">
+            <Typography variant="inherit" component="p" className="text-[11px] text-slate-500 leading-relaxed">
+              This Key Facts Statement (KFS) is provided as required under the RBI Digital Lending Guidelines and summarises the sanctioned terms of your education-fee financing facility.
+            </Typography>
+
+            {/* Loan sanction details */}
+            <Typography variant="inherit" component="p" className="font-head font-bold text-brand-navy text-[13px] mt-3 mb-1.5">Loan Sanction Details</Typography>
             <Box className="rounded-lg bg-slate-50 border border-border p-3 space-y-1.5">
-              <Row k="Applicant" v={applicant || "—"} />
+              <Row k="Applicant / Borrower" v={applicant || "—"} />
               <Row k="Student" v={studentName || "—"} />
               <Row k="Lender" v="CSB Bank Limited" />
-              <Row k="School Fee" v={inr(academicTotal)} />
+              <Row k="Total School Fee" v={inr(academicTotal)} />
               <Row k="Down Payment" v={inr(down)} />
-              <Row k="Financed Amount" v={inr(financed)} />
+              <Row k="Sanctioned / Financed Amount" v={inr(financed)} />
               <Row k="Tenure" v={`${tenure} months`} />
+              <Row k="Number of EMIs" v={`${tenure}`} />
               <Row k="Monthly EMI" v={inr(emi)} />
-              <Row k="Interest Rate" v="0% p.a." />
-              <Row k="Processing Fee (incl. GST)" v={inr(pf)} />
-              <Row k="Total Repayment" v={inr(financed)} />
+              <Row k="Handling Charges" v="₹850 + GST" />
+              <Row k="Total Amount Payable" v={inr(financed)} />
             </Box>
-            <Typography variant="inherit" component="p" className="text-xs text-slate-500 leading-relaxed">
-              This Key Fact Statement summarises the key terms of your 0% interest education-fee financing facility as mandated by the RBI Digital Lending Guidelines. There is no interest charged on this facility; a one-time processing fee (inclusive of GST) applies as shown above. Prepayment is allowed with no foreclosure charges. Missed EMIs may attract nominal late-payment fees and be reported to credit bureaus.
+
+            {/* Rate disclosure — mandatory IRR + customer-facing 0% */}
+            <Typography variant="inherit" component="p" className="font-head font-bold text-brand-navy text-[13px] mt-3 mb-1.5">Rate of Interest</Typography>
+            <Box className="rounded-lg border border-border overflow-hidden">
+              <Box className="flex items-center justify-between px-3 py-2.5 bg-slate-50 border-b border-border">
+                <Box className="min-w-0">
+                  <Box component="span" className="text-[12px] font-semibold text-slate-600">Annual Percentage Rate (APR) / IRR</Box>
+                  <Box component="p" className="text-[10.5px] text-slate-400 leading-snug mt-0.5">Regulatory disclosure — reflects the lender&apos;s effective yield / subvention borne by the institution.</Box>
+                </Box>
+                <Box component="span" className="font-head font-bold text-slate-600 shrink-0" data-testid="kfs-irr">≈ 14.00% p.a.</Box>
+              </Box>
+              <Box className="flex items-center justify-between px-3 py-2.5 bg-emerald-50">
+                <Box className="min-w-0">
+                  <Box component="span" className="text-[12px] font-bold text-emerald-800">Your interest rate</Box>
+                  <Box component="p" className="text-[10.5px] text-emerald-700/80 leading-snug mt-0.5">Payable by you on this facility.</Box>
+                </Box>
+                <Box component="span" className="font-head font-black text-emerald-700 text-lg shrink-0" data-testid="kfs-your-rate">0%</Box>
+              </Box>
+            </Box>
+
+            <Typography variant="inherit" component="p" className="text-[11px] text-slate-500 leading-relaxed mt-3">
+              There is no interest charged to you on this facility. A one-time handling charge of ₹850 plus applicable GST applies as shown above. Prepayment is allowed with no foreclosure charges. Missed EMIs may attract nominal late-payment fees and be reported to credit bureaus.
             </Typography>
-          </>
+          </Box>
         ) : (
           <AgreementDoc
             applicant={applicant}
