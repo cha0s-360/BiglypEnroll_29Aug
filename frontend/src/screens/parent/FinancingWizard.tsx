@@ -792,7 +792,7 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
                       <OfferRow label="Tenure" value={`${tenure} months`} />
                       <OfferRow label="EMI" value={`${inr(preview?.emi || 0)}/mo`} strong accent />
                       <OfferRow label="Interest Rate" value="0%" />
-                      <OfferRow label="Processing Fee" value={inr(preview?.processing_fee || 0)} />
+                      <OfferRow label="Handling Charges" value="₹850 + GST" />
                       <OfferRow label="Total Repayment" value={inr(preview?.total_repayment || 0)} />
                       <OfferRow label="Amount Payable Now" value={inr(amountNow)} />
                     </Box>
@@ -803,13 +803,6 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
                     <Box className="flex justify-between"><Box component="span" className="text-slate-500">School Fee</Box><Box component="span" className="font-semibold">{inr(academicTotal)}</Box></Box>
                     <Box className="flex justify-between"><Box component="span" className="text-slate-500">Upfront Payment</Box><Box component="span" className="font-semibold">{inr(down)}</Box></Box>
                     <Box className="flex justify-between"><Box component="span" className="text-slate-500">Financed Amount</Box><Box component="span" className="font-semibold text-[#5548D1]">{inr(preview?.financed_amount || 0)}</Box></Box>
-                  </Box>
-
-                  {/* Documents */}
-                  <Box className="flex flex-wrap gap-3">
-                    <Button variant="outline" onClick={() => setDocView("agreement")} data-testid="view-agreement-btn" className="h-10 rounded-lg border-[#5548D1] text-[#5548D1] hover:bg-[#EEF0FF] font-semibold">
-                      <FileSignature className="h-4 w-4 mr-1.5" /> View Loan Agreement
-                    </Button>
                   </Box>
                 </Box>
               )}

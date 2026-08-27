@@ -2,7 +2,7 @@
   "version": 1,
   "config": {
     "env": {
-      "REACT_APP_BACKEND_URL": "https://9aef21d3-2b53-490d-bd01-bad38d8a502f.preview.emergentagent.com"
+      "REACT_APP_BACKEND_URL": "https://enroll-system-22.preview.emergentagent.com"
     },
     "webpack": null,
     "eslint": {
