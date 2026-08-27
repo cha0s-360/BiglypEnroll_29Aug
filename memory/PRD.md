@@ -28,6 +28,7 @@ super_admin (Biglyp Ops), school_admin, finance, counsellor, parent.
 - School onboarding wizard: profile → campuses → courses → settlement accounts → go live
 - Fee Structure manager: fee heads (amount/frequency/grades), scholarships, early-bird & late-fee rules, draft/publish, **AI Excel/CSV upload parsing**
 - School↔Bank financing admin (`/dashboard/schools`, ops-only): CRUD schools, attach multiple banks each with an independent interest rate + priority (auto-selection order), per-school fee-financing on/off toggle. Backend in `credit.py` (`fin_schools` collection, hardcoded/dummy bank list via `GET /api/credit/dummy-banks`, GET-by-school-ID lookup for later financing buckets)
+- Parent EMI eligibility gate (Bucket 4 Screen 2, `FinancingWizard` Step 2): credit score checked against the bank's configured threshold (default 750) via `POST /api/parent/cibil-check` (`emi_threshold`/`emi_eligible`). Below threshold shows a neutral pop-up (no mention of "credit score"/"CIBIL") and returns the parent to the Home Screen (`ParentDashboard`) with the EMI option disabled — not a dead-end. Above threshold proceeds to KYC.
 - Students list + add (with parent email linking)
 - Parent app: pending fees, itemized summary w/ GST, mock payment (multiple modes) + receipt, 0% EMI financing with schedule preview, payment history
 - Analytics dashboard: KPIs (collected, financed, outstanding, overdue, students, txns), collection velocity line, payment-mode pie, aging bars, admission funnel

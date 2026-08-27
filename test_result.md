@@ -105,6 +105,21 @@
 user_problem_statement: "Redesign the parent's EMI selection & fee-financing application journey per the uploaded PDF (screen-wise changes). Backend change: /parent/financing/preview & /parent/pay-financing now return/store a 1% (incl. GST) processing fee, apr, total_repayment, amount_payable_now, requires_docs, and an agreement_id."
 
 backend:
+  - task: "Bucket 4 Screen 2 eligibility gate — POST /api/parent/cibil-check now returns emi_threshold + emi_eligible against the bank's configured credit-score threshold (default 750)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Modified existing POST /api/parent/cibil-check (auth: parent@biglyp.com/parent123). Added two response fields: `emi_threshold` (int, = active financing bank's min_credit_score if set else hardcoded 750) and `emi_eligible` (bool, = score >= emi_threshold). Existing `approved` (score>=670) and `score` untouched. Deterministic demo hooks: PAN starting ZZZZZ => low score (~540-580, emi_eligible False), PAN starting AAAAA => high score (~800-850, emi_eligible True); other valid PANs => 690-830 band. Validation still: invalid PAN => 400, consent False => 400. Smoke-tested via curl: ZZZZZ1234A => score 575, emi_threshold 750, emi_eligible False; AAAAA1234A => score 831, emi_eligible True. Frontend (FinancingWizard Step 2) now gates on emi_eligible and, on False, shows a neutral pop-up and returns parent to Home with EMI option disabled (frontend already verified manually via screenshots — do NOT frontend-test unless user asks)."
+        -working: true
+        -agent: "testing"
+        -comment: "Comprehensive testing completed. All 5 test cases passed (6 checks from review request): (1) POST /api/parent/cibil-check with PAN='ZZZZZ1234A' (low score hook) and consent=true returned HTTP 200 with emi_threshold=750 (int), emi_eligible=False (bool), score=575 (int, < 750), band='Poor' (str), approved=False (bool), max_eligible=0, pan_masked='ZZZXXX4A', bureau='CIBIL (TransUnion)', pull_type='Soft — no impact on credit score', factors array with 4 items, decision text, checked_at timestamp - all existing fields present and correct types verified; (2) POST /api/parent/cibil-check with PAN='AAAAA1234A' (high score hook) and consent=true returned HTTP 200 with emi_threshold=750, emi_eligible=True, score=831 (>= 750), band='Excellent', approved=True, max_eligible=250000 - all fields correct; (3) Consistency check verified in both responses: emi_eligible correctly equals (score >= emi_threshold) - Test 1: False == (575 >= 750), Test 2: True == (831 >= 750); (4) POST with invalid PAN='ABC' and consent=true correctly returned HTTP 400 with detail='Enter a valid PAN (e.g. ABCDE1234F)'; (5) POST with valid PAN='AAAAA1234A' and consent=false correctly returned HTTP 400 with detail='Consent is required for the eligibility check'; (6) POST without Authorization header correctly returned HTTP 401 with detail='Not authenticated'. All validation, authentication, field types, and business logic working correctly. Feature working correctly."
+
   - task: "School↔Bank financing management — /api/credit/fin-schools CRUD + /api/credit/dummy-banks + GET-by-school-ID lookup"
     implemented: true
     working: true
@@ -529,14 +544,16 @@ frontend:
 
 test_plan:
   current_focus:
-    - "School↔Bank financing management — /api/credit/fin-schools CRUD + /api/credit/dummy-banks + GET-by-school-ID lookup"
+    - "Bucket 4 Screen 2 eligibility gate — POST /api/parent/cibil-check emi_threshold + emi_eligible"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     -agent: "main"
-    -message: "NEW feature to test ONLY: School↔Bank financing management endpoints in backend/credit.py (prefix /api/credit). Endpoints: GET /dummy-banks, GET /fin-schools, POST /fin-schools, GET /fin-schools/{id}, PUT /fin-schools/{id}, DELETE /fin-schools/{id}. Auth admin: admin@biglyp.com/admin123 (super_admin). Non-admin for 403 checks: parent@biglyp.com/parent123 (parent). Key checks: (a) create a school with multiple banks having INDEPENDENT interest rates + priority; response banks sorted by priority asc. (b) GET-by-id returns attached banks + rates + priority order + financing_enabled toggle. (c) PUT updates rates/priority/toggle and re-sorts; updated_at changes. (d) DELETE works + 404 on missing id. (e) empty name -> 400. (f) 403 for parent on list/create/update/delete; parent CAN call GET-by-id and GET /dummy-banks. (g) 401 without auth. Do NOT re-test other already-green features."
+    -message: "Test ONLY the modified POST /api/parent/cibil-check endpoint. Auth: parent@biglyp.com/parent123. New response fields to verify: `emi_threshold` (should be 750) and `emi_eligible` (bool = score >= emi_threshold). Checks: (1) PAN 'ZZZZZ1234A' + consent:true => 200, score < 750, emi_eligible=false, emi_threshold=750. (2) PAN 'AAAAA1234A' + consent:true => 200, score >= 750, emi_eligible=true. (3) invalid PAN 'ABC' => 400. (4) consent:false => 400. (5) confirm existing fields still present: score (int), approved (bool), band. Do NOT test other endpoints (fin-schools already green)."
+    -agent: "testing"
+    -message: "Testing completed successfully. All 5 test cases passed (6 checks from review request). POST /api/parent/cibil-check endpoint working correctly with new emi_threshold and emi_eligible fields. Test results: (1) Low score PAN 'ZZZZZ1234A': emi_threshold=750, emi_eligible=False, score=575 (<750), all existing fields present (score int, approved bool, band str), consistency verified (False == 575>=750). (2) High score PAN 'AAAAA1234A': emi_threshold=750, emi_eligible=True, score=831 (>=750), consistency verified (True == 831>=750). (3) Invalid PAN 'ABC': HTTP 400 with proper error message. (4) Consent false: HTTP 400 with proper error message. (5) No auth header: HTTP 401. All validation, authentication, field types, and business logic working correctly. Feature is production-ready. No issues found."
 
   - task: "Fee Reminders — configurable auto reminders + manual Send Now + queued email log"
     implemented: true

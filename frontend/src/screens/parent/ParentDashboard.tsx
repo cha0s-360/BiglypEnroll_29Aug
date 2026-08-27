@@ -61,6 +61,9 @@ export default function ParentDashboard() {
   const [finOpen, setFinOpen] = useState(false);
   const [finHeadIds, setFinHeadIds] = useState([]);
   const [finAmount, setFinAmount] = useState(0);
+  // Bucket 4 — Screen 2: EMI disabled per-student after a failed eligibility check
+  const [emiIneligibleFor, setEmiIneligibleFor] = useState({});
+  const emiIneligible = !!emiIneligibleFor[activeChild];
 
   useEffect(() => {
     api.get("/parent/children").then(({ data }) => {
@@ -146,7 +149,7 @@ export default function ParentDashboard() {
     if (!feeData) return;
     const po = feeData.payment_options || { emi: true, auto_debit: true, full: true };
     const order = [["a", "emi"], ["b", "auto_debit"], ["c", "full"]];
-    const firstEnabled = order.find(([, f]) => po[f]);
+    const firstEnabled = order.find(([k, f]) => po[f] && !(k === "a" && emiIneligibleFor[activeChild]));
     setSelectedOption(firstEnabled ? firstEnabled[0] : null);
   }, [feeData]);
 
@@ -215,8 +218,25 @@ export default function ParentDashboard() {
     refresh();
   };
 
+  // Bucket 4 — Screen 2: eligibility failed. Return to Home with EMI disabled for
+  // this student (not a dead-end) and move the selection off EMI.
+  const onFinancingIneligible = () => {
+    if (!activeChild) return;
+    setEmiIneligibleFor((m) => ({ ...m, [activeChild]: true }));
+    setSelectedOption((cur) => {
+      if (cur !== "a") return cur;
+      const alt = enabledOptions.find((o) => o.key !== "a");
+      return alt ? alt.key : null;
+    });
+    toast("EMI financing isn't available for this student right now — please choose another payment option.");
+  };
+
 
   const proceedAcademic = () => {
+    if (selectedOption === "a" && emiIneligible) {
+      toast("EMI financing isn't available for this student right now.");
+      return;
+    }
     if (selectedOption === "c") { startPay(fullIds); return; }
     if (selectedOption === "a") { startFinancing(installIds); return; }
     // option b -> auto-debit mandate setup (one-time fees excluded)
@@ -288,6 +308,7 @@ export default function ParentDashboard() {
         <Box className="mb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" data-testid="option-cards">
           {enabledOptions.map((o, idx) => {
             const active = selectedOption === o.key;
+            const disabled = o.key === "a" && emiIneligible;
             const displayLetter = String.fromCharCode(65 + idx); // sequential A, B, C — no gaps
             const badgeTone = {
               green: "bg-emerald-100 text-emerald-700",
@@ -298,38 +319,46 @@ export default function ParentDashboard() {
               <Box component="button"
                 key={o.key}
                 data-testid={`option-${o.key}`}
-                onClick={() => setSelectedOption(o.key)}
+                disabled={disabled}
+                aria-disabled={disabled}
+                onClick={() => { if (disabled) return; setSelectedOption(o.key); }}
                 className={`card-lift reveal-${idx + 1} relative text-left rounded-2xl border-2 p-5 ${
-                  active
+                  disabled
+                    ? "border-transparent bg-slate-50 opacity-60 cursor-not-allowed grayscale"
+                    : active
                     ? "border-[#5548D1] bg-gradient-to-br from-[#EEF0FF] to-white soft-shadow-lg"
                     : "border-transparent bg-white soft-shadow hover:border-[#5548D1]/30"
                 }`}
               >
                 {/* selected check */}
                 <Box component="span" className={`absolute top-4 right-4 h-6 w-6 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  active ? "bg-[#5548D1] text-white scale-100 opacity-100" : "bg-slate-100 text-transparent scale-75 opacity-0"
+                  active && !disabled ? "bg-[#5548D1] text-white scale-100 opacity-100" : "bg-slate-100 text-transparent scale-75 opacity-0"
                 }`}>
                   <Check className="h-3.5 w-3.5" strokeWidth={3} />
                 </Box>
 
                 <Box className="flex items-center gap-2">
                   <Box component="span" className={`h-7 w-7 rounded-lg flex items-center justify-center text-[11px] font-black transition-colors ${
-                    active ? "bg-[#5548D1] text-white" : "bg-[#EEF0FF] text-[#5548D1]"
+                    active && !disabled ? "bg-[#5548D1] text-white" : "bg-[#EEF0FF] text-[#5548D1]"
                   }`}>
                     {displayLetter}
                   </Box>
-                  <Box component="span" className={`rounded-full text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 leading-tight ${badgeTone}`}>
-                    {o.badge.text}
+                  <Box component="span" className={`rounded-full text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 leading-tight ${
+                    disabled ? "bg-slate-200 text-slate-500" : badgeTone
+                  }`}>
+                    {disabled ? "Not available" : o.badge.text}
                   </Box>
                 </Box>
 
                 <Typography variant="inherit" component="p" className="font-head text-[19px] font-black tracking-tight leading-snug text-brand-navy mt-3">
                   {o.title}
                 </Typography>
-                <Typography variant="inherit" component="p" className="text-[12.5px] text-slate-500 mt-1">{o.subtitle}</Typography>
+                <Typography variant="inherit" component="p" className="text-[12.5px] text-slate-500 mt-1">
+                  {disabled ? "Not available for this student right now" : o.subtitle}
+                </Typography>
 
                 <Box className="mt-4 flex items-baseline gap-1.5">
-                  <Box component="span" className={`font-head text-3xl font-black tracking-tight ${o.primary || active ? "text-[#5548D1]" : "text-brand-navy"}`}>
+                  <Box component="span" className={`font-head text-3xl font-black tracking-tight ${!disabled && (o.primary || active) ? "text-[#5548D1]" : "text-brand-navy"}`}>
                     {inr(o.amount)}
                   </Box>
                   <Box component="span" className="text-xs font-semibold text-slate-400">{o.unit}</Box>
@@ -640,6 +669,7 @@ export default function ParentDashboard() {
         feeHeadIds={finHeadIds}
         academicTotal={finAmount}
         onSuccess={onFinancingSuccess}
+        onIneligible={onFinancingIneligible}
       />
 
       {/* Receipt dialog — Approval Timeline for financing, simple receipt otherwise */}

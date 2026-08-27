@@ -896,6 +896,12 @@ async def cibil_check(body: CibilCheckIn, user: dict = Depends(get_current_user)
         {"label": "Credit mix & age", "status": "positive" if score >= 750 else "neutral"},
         {"label": "Recent enquiries (soft pull)", "status": "neutral"},
     ]
+    # Bucket 4 — Screen 2 eligibility gate: check the credit score against the
+    # bank's CONFIGURED threshold (hardcoded default 750; wire to Bucket 1 later).
+    bank = await _active_financing_bank()
+    emi_threshold = int((bank or {}).get("min_credit_score") or 750)
+    emi_eligible = score >= emi_threshold
+
     decision = (
         "Congratulations! You are pre-approved for 0% EMI financing."
         if approved
@@ -907,6 +913,8 @@ async def cibil_check(body: CibilCheckIn, user: dict = Depends(get_current_user)
         "band": band,
         "band_color": band_color,
         "approved": approved,
+        "emi_threshold": emi_threshold,
+        "emi_eligible": emi_eligible,
         "max_eligible": max_eligible,
         "bureau": "CIBIL (TransUnion)",
         "pull_type": "Soft — no impact on credit score",

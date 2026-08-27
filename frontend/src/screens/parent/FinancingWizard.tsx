@@ -22,7 +22,7 @@ import {
   Camera, Landmark, Smartphone, CreditCard, Lock, BadgeCheck, Zap,
   CheckCircle2, Loader2, Calendar, FileSignature, ShieldQuestion,
   Gauge, XCircle, RefreshCw, BookOpen, Sparkle, FileText, Upload,
-  PartyPopper, Download, ScrollText, User, Briefcase, GraduationCap, AlertCircle,
+  PartyPopper, Download, ScrollText, User, Briefcase, GraduationCap, AlertCircle, Info,
 } from "lucide-react";
 
 const STEPS = [
@@ -59,9 +59,12 @@ const PROFILE_ADDRESS = {
   residenceType: "Self Owned",
 };
 
-export function FinancingWizard({ open, onOpenChange, studentId, studentName, studentGrade, feeHeadIds, academicTotal, onSuccess }) {
+export function FinancingWizard({ open, onOpenChange, studentId, studentName, studentGrade, feeHeadIds, academicTotal, onSuccess, onIneligible }) {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
+
+  // Bucket 4 — Screen 2: eligibility redirect (not a dead-end) when below threshold
+  const [ineligibleOpen, setIneligibleOpen] = useState(false);
 
   // Step 1 — plan
   const [down, setDown] = useState(0);
@@ -227,12 +230,27 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
       ]);
       setCibilResult(data);
       setPan(cibilPan.toUpperCase());
-      toast.success(data.approved ? "Pre-approved for 0% EMI" : "Eligibility check completed");
+      // Bucket 4 — Screen 2: gate on the bank's configured credit-score threshold.
+      // Below threshold => neutral pop-up + redirect home (handled by the dialog),
+      // instead of a dead-end decline screen.
+      if (data.emi_eligible === false) {
+        setIneligibleOpen(true);
+      } else {
+        toast.success("Great news — you're eligible for 0% EMI");
+      }
     } catch (err) {
       toast.error(err.response?.data?.detail || "Could not run the eligibility check");
     } finally {
       setCibilChecking(false);
     }
+  };
+
+  // Bucket 4 — Screen 2: user acknowledges the (neutral) ineligibility pop-up.
+  // Close the wizard and return to the Home Screen with EMI marked disabled.
+  const acknowledgeIneligible = () => {
+    setIneligibleOpen(false);
+    onOpenChange(false);
+    onIneligible?.();
   };
 
   // animate the CIBIL score meter
@@ -270,7 +288,7 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
   // per-step validity
   const canContinue = useMemo(() => {
     if (step === 1) return !!preview && preview.meets_min !== false;
-    if (step === 2) return eligConsent && cibilResult && cibilResult.approved &&
+    if (step === 2) return eligConsent && cibilResult && cibilResult.emi_eligible &&
       firstName.trim() && lastName.trim() && dob && PAN_RE.test(cibilPan);
     if (step === 3) return (
       firstName.trim() && lastName.trim() && fatherName.trim() && gender && maritalStatus &&
@@ -1078,12 +1096,36 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
             </Button>
           </Box>
         )}
+
+        {/* Bucket 4 — Screen 2: neutral, non-alarming ineligibility pop-up.
+            Deliberately does NOT mention "credit score" or "CIBIL". On acknowledge
+            it returns the user to the Home Screen with EMI shown disabled. */}
+        <Dialog open={ineligibleOpen} onOpenChange={setIneligibleOpen}>
+          <DialogContent className="max-w-md rounded-2xl" data-testid="emi-ineligible-dialog">
+            <Box className="flex flex-col items-center text-center pt-2">
+              <Box className="h-14 w-14 rounded-full bg-[#EEF0FF] flex items-center justify-center mb-4">
+                <Info className="h-7 w-7 text-[#5548D1]" />
+              </Box>
+              <Typography variant="inherit" component="h2" className="font-head text-xl font-black text-brand-navy">
+                EMI financing isn&apos;t available right now
+              </Typography>
+              <Typography variant="inherit" component="p" className="text-sm text-slate-500 mt-2 leading-relaxed">
+                Based on our quick review, this application isn&apos;t eligible for the 0% EMI plan
+                at the moment. You can still pay the fees using the other available payment options.
+              </Typography>
+              <Button
+                onClick={acknowledgeIneligible}
+                data-testid="emi-ineligible-ack"
+                className="mt-6 w-full h-11 rounded-lg bg-[#5548D1] hover:bg-[#3F35A8] text-white font-semibold">
+                Back to payment options
+              </Button>
+            </Box>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
 }
-
-/* -------- Progressive gated section (Step 5) -------- */
 function GatedSection({ n, title, subtitle, icon: Icon, done, locked, children }) {
   return (
     <Box className={`rounded-xl border p-3.5 transition-all ${done ? "border-emerald-200 bg-emerald-50/30" : locked ? "border-border bg-slate-50/60" : "border-[#5548D1]/30 bg-white"}`}
