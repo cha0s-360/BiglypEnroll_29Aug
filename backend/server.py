@@ -659,21 +659,62 @@ def _financing_economics(financed: float, tenure: int, down: float) -> dict:
     }
 
 
+FINANCING_MIN_DEFAULT = 25000.0
+
+
+async def _active_financing_bank() -> dict | None:
+    """The bank whose config drives the parent 0% EMI flow (first active one)."""
+    return await db.financing_banks.find_one({"active": True})
+
+
+def _bank_flow_cfg(bank: dict | None) -> dict:
+    return {
+        "id": (bank or {}).get("id"),
+        "name": (bank or {}).get("name"),
+        "advance_emi": bool((bank or {}).get("advance_emi")),
+        "min_loan_amount": float((bank or {}).get("min_loan_amount", FINANCING_MIN_DEFAULT)),
+    }
+
+
+@api.get("/parent/financing/bank-config")
+async def financing_bank_config(user: dict = Depends(get_current_user)):
+    """Screen 1 reads this to know min loan amount + advance-EMI vs down-payment mode."""
+    return _bank_flow_cfg(await _active_financing_bank())
+
+
 @api.post("/parent/financing/preview")
 async def financing_preview(body: FinancingPreviewIn, user: dict = Depends(get_current_user)):
+    cfg = _bank_flow_cfg(await _active_financing_bank())
+    advance_mode = cfg["advance_emi"]
+    min_loan = cfg["min_loan_amount"]
+    total = max(0.0, float(body.amount))
     tenure = max(3, min(12, body.tenure))
-    financed = max(0.0, body.amount - body.down_payment)
+    if advance_mode:
+        # Advance EMI: the 1st installment counts as EMI #1 (NOT a reduction of the loan).
+        down = 0.0
+        financed = total
+    else:
+        # Optional down payment reduces the financed amount.
+        down = max(0.0, min(total, float(body.down_payment)))
+        financed = max(0.0, total - down)
     emi = math.ceil(financed / tenure) if tenure else 0
+    advance_amount = emi if advance_mode else 0
+    econ = _financing_economics(financed, tenure, down)
+    amount_payable_now = round((advance_amount if advance_mode else down) + econ["processing_fee"])
+    meets_min = financed >= min_loan
     schedule = []
     base = datetime.now(timezone.utc)
     for i in range(tenure):
         due = base + timedelta(days=30 * (i + 1))
-        schedule.append({"month": i + 1, "due_date": due.strftime("%d %b %Y"),
+        label = "1st Installment (Advance)" if (advance_mode and i == 0) else f"EMI {i + 1}"
+        schedule.append({"month": i + 1, "label": label, "due_date": due.strftime("%d %b %Y"),
                          "amount": emi, "status": "upcoming"})
-    econ = _financing_economics(financed, tenure, body.down_payment)
-    return {"financed_amount": financed, "down_payment": body.down_payment,
+    return {"financed_amount": financed, "down_payment": down,
             "tenure": tenure, "emi": emi, "interest": "0%", "schedule": schedule,
-            **econ}
+            **econ, "amount_payable_now": amount_payable_now,
+            "advance_mode": advance_mode, "advance_amount": advance_amount,
+            "min_loan_amount": min_loan, "meets_min": meets_min,
+            "bank_name": cfg["name"]}
 
 
 @api.post("/parent/pay-financing")
@@ -684,26 +725,41 @@ async def pay_financing(body: PayIn, user: dict = Depends(get_current_user)):
     if not selected:
         raise HTTPException(status_code=400, detail="No payable items selected")
     total = sum(i["amount"] for i in selected)
+    cfg = _bank_flow_cfg(await _active_financing_bank())
+    advance_mode = cfg["advance_emi"]
+    min_loan = cfg["min_loan_amount"]
     tenure = max(3, min(12, body.tenure))
-    down = max(0.0, min(total, body.down_payment))
-    financed = max(0.0, total - down)
+    if advance_mode:
+        down = 0.0
+        financed = total
+    else:
+        down = max(0.0, min(total, body.down_payment))
+        financed = max(0.0, total - down)
+    if financed < min_loan:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Financing amount {int(financed)} is below the minimum loan amount "
+                   f"{int(min_loan)} for {cfg['name'] or 'the selected bank'}.")
     emi = math.ceil(financed / tenure) if tenure else 0
+    advance_amount = emi if advance_mode else 0
     base = datetime.now(timezone.utc)
     main_receipt = "BLP-FIN-" + uuid.uuid4().hex[:6].upper()
     schedule = []
     for i in range(tenure):
         due = base + timedelta(days=30 * i)  # EMI 1 settled at activation
+        label = "1st Installment (Advance)" if (advance_mode and i == 0) else f"EMI {i + 1}"
         if i == 0:
             status, rail, rcpt = "paid", "UPI AutoPay", main_receipt
         elif i == 1:
             status, rail, rcpt = "scheduled", "eNACH Mandate", None
         else:
             status, rail, rcpt = "upcoming", "eNACH Mandate", None
-        schedule.append({"month": i + 1, "label": f"EMI {i + 1}",
+        schedule.append({"month": i + 1, "label": label,
                          "due_date": due.strftime("%d %b %Y"),
                          "amount": emi, "status": status, "rail": rail, "receipt_no": rcpt})
     receipt_no = main_receipt
     econ = _financing_economics(financed, tenure, down)
+    amount_payable_now = round((advance_amount if advance_mode else down) + econ["processing_fee"])
     doc = {
         "student_id": student["id"], "student_name": student["name"],
         "school_id": student["school_id"], "items": selected, "amount": total,
@@ -712,6 +768,9 @@ async def pay_financing(body: PayIn, user: dict = Depends(get_current_user)):
         "down_payment": down, "financed_amount": financed, "schedule": schedule,
         "processing_fee": econ["processing_fee"], "apr": econ["apr"],
         "total_repayment": econ["total_repayment"],
+        "advance_mode": advance_mode, "advance_amount": advance_amount,
+        "amount_payable_now": amount_payable_now,
+        "bank_name": cfg["name"],
         "agreement_id": "BLP-AGR-" + uuid.uuid4().hex[:8].upper(),
         "receipt_no": receipt_no, "academic_year": ACADEMIC_YEAR,
         "created_at": datetime.now(timezone.utc).isoformat(),

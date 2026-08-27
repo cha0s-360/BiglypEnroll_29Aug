@@ -22,7 +22,7 @@ import {
   Camera, Landmark, Smartphone, CreditCard, Lock, BadgeCheck, Zap,
   CheckCircle2, Loader2, Calendar, FileSignature, ShieldQuestion,
   Gauge, XCircle, RefreshCw, BookOpen, Sparkle, FileText, Upload,
-  PartyPopper, Download, ScrollText, User, Briefcase, GraduationCap,
+  PartyPopper, Download, ScrollText, User, Briefcase, GraduationCap, AlertCircle,
 } from "lucide-react";
 
 const STEPS = [
@@ -124,6 +124,12 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
   // Overlay document viewer (KFS / Agreement / Schedule)
   const [docView, setDocView] = useState(null); // null | 'kfs' | 'agreement' | 'schedule'
 
+  // Phase 2 — active financing bank config (drives Screen 1)
+  const [bankCfg, setBankCfg] = useState(null); // { name, advance_emi, min_loan_amount }
+  const advanceMode = preview?.advance_mode ?? bankCfg?.advance_emi ?? false;
+  const minLoan = preview?.min_loan_amount ?? bankCfg?.min_loan_amount ?? 25000;
+  const meetsMin = preview ? preview.meets_min !== false : true;
+
   const financed = preview?.financed_amount ?? Math.max(0, academicTotal - down);
   const needDocs = academicTotal > DOC_THRESHOLD;
 
@@ -148,6 +154,10 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
     setLastName(parts.slice(1).join(" ") || "");
     setEmail(user?.email || "");
     setDob("");
+    // load the active financing bank's config (min amount + advance-EMI vs down-payment)
+    api.get("/parent/financing/bank-config")
+      .then(({ data }) => setBankCfg(data))
+      .catch(() => setBankCfg(null));
   }, [open, user]);
 
   // plan preview
@@ -259,7 +269,7 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
 
   // per-step validity
   const canContinue = useMemo(() => {
-    if (step === 1) return !!preview;
+    if (step === 1) return !!preview && preview.meets_min !== false;
     if (step === 2) return eligConsent && cibilResult && cibilResult.approved &&
       firstName.trim() && lastName.trim() && dob && PAN_RE.test(cibilPan);
     if (step === 3) return (
@@ -385,12 +395,30 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
                 )}
               </Box>
 
-              <Box>
-                <Label className="text-sm text-brand-navy">Down payment (optional)</Label>
-                <Input type="number" value={down} data-testid="wiz-down"
-                  onChange={(e) => setDown(Math.max(0, Math.min(academicTotal, Number(e.target.value))))}
-                  className="rounded-lg mt-1.5" />
-              </Box>
+              {advanceMode ? (
+                <Box className="rounded-xl border border-[#5548D1]/25 bg-white p-4" data-testid="advance-emi-card">
+                  <Box className="flex items-start justify-between gap-2">
+                    <Box>
+                      <Typography variant="inherit" component="p" className="text-[10px] uppercase tracking-widest font-bold text-[#5548D1]">1st Installment (Advance)</Typography>
+                      <Typography variant="inherit" component="p" className="text-[11.5px] text-slate-500 mt-1">Paid now — this counts as your first EMI, not an extra charge. Your loan amount stays the full fee.</Typography>
+                    </Box>
+                    <Box component="span" className="rounded-full bg-[#EEF0FF] text-[#5548D1] text-[10px] font-bold px-2 py-0.5 uppercase tracking-widest whitespace-nowrap">Mandatory</Box>
+                  </Box>
+                  {preview && (
+                    <Typography variant="inherit" component="p" className="mt-2 font-head text-xl font-black text-brand-navy" data-testid="advance-amount">
+                      {inr(preview.advance_amount || preview.emi)}
+                      <Box component="span" className="text-[11px] font-semibold text-slate-500 ml-1">payable now</Box>
+                    </Typography>
+                  )}
+                </Box>
+              ) : (
+                <Box>
+                  <Label className="text-sm text-brand-navy">Down payment (optional)</Label>
+                  <Input type="number" value={down} data-testid="wiz-down"
+                    onChange={(e) => setDown(Math.max(0, Math.min(academicTotal, Number(e.target.value))))}
+                    className="rounded-lg mt-1.5" />
+                </Box>
+              )}
 
               {/* Tenure — 4 discrete options instead of a slider */}
               <Box>
@@ -419,6 +447,24 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
                   <Box className="flex justify-between"><Box component="span" className="text-slate-500">Interest</Box><Box component="span" className="font-semibold text-green-600">0%</Box></Box>
                   <Box className="flex justify-between"><Box component="span" className="text-slate-500">Processing fee (incl. GST)</Box><Box component="span" className="font-semibold">{inr(preview.processing_fee)}</Box></Box>
                 </Box>
+              )}
+
+              {preview && !meetsMin && (
+                <Box className="rounded-xl border border-red-200 bg-red-50 p-3 flex items-start gap-2.5" data-testid="min-loan-warning">
+                  <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                  <Box>
+                    <Typography variant="inherit" component="p" className="text-[13px] font-semibold text-red-700">Below the minimum financing amount</Typography>
+                    <Typography variant="inherit" component="p" className="text-[12px] text-red-600/90 mt-0.5">
+                      {bankCfg?.name || "This bank"} requires a minimum loan of <b>{inr(minLoan)}</b>. Your financed amount is {inr(preview.financed_amount)}{down > 0 ? " — reduce your down payment to continue." : "."}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {bankCfg?.name && (
+                <Typography variant="inherit" component="p" className="text-[11px] text-slate-400 text-center" data-testid="plan-bank-name">
+                  Financing partner: <b className="text-slate-500">{bankCfg.name}</b> · min {inr(minLoan)}
+                </Typography>
               )}
             </Box>
           )}
@@ -928,10 +974,12 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
                 )}
               </GatedSection>
 
-              {/* Section 3 — Complete the down-payment */}
-              <GatedSection n={3} done={upfrontPaid} locked={!autopaySet} icon={CreditCard} title="Complete the down-payment" subtitle="">
+              {/* Section 3 — Complete the advance / down-payment */}
+              <GatedSection n={3} done={upfrontPaid} locked={!autopaySet} icon={CreditCard} title={advanceMode ? "Pay 1st Installment (Advance)" : "Complete the down-payment"} subtitle="">
                 <Box className="rounded-lg bg-[#EEF0FF] p-2.5 space-y-1 text-[13px]" data-testid="upfront-pay">
-                  {down > 0 && <Box className="flex justify-between"><Box component="span" className="text-slate-500">Down payment</Box><Box component="span" className="font-semibold">{inr(down)}</Box></Box>}
+                  {advanceMode ? (
+                    <Box className="flex justify-between"><Box component="span" className="text-slate-500">1st Installment (Advance)</Box><Box component="span" className="font-semibold">{inr(preview?.advance_amount || preview?.emi || 0)}</Box></Box>
+                  ) : (down > 0 && <Box className="flex justify-between"><Box component="span" className="text-slate-500">Down payment</Box><Box component="span" className="font-semibold">{inr(down)}</Box></Box>)}
                   <Box className="flex justify-between"><Box component="span" className="text-slate-500">Processing fee (incl. GST)</Box><Box component="span" className="font-semibold">{inr(preview?.processing_fee || 0)}</Box></Box>
                   <Box className="flex justify-between border-t border-[#5548D1]/15 pt-1.5 mt-1.5"><Box component="span" className="font-semibold text-brand-navy">Amount Payable Now</Box><Box component="span" className="font-head font-black text-[#5548D1]">{inr(amountNow)}</Box></Box>
                 </Box>

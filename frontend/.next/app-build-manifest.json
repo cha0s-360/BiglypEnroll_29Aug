@@ -12,7 +12,7 @@
       "static/chunks/4bd1b696-100b9d70ed4e49c1.js",
       "static/chunks/1255-7b4b5a04291b6a94.js",
       "static/chunks/main-app-09bf114d14847590.js",
-      "static/css/9bccb862569246d4.css",
+      "static/css/8a83dcacd3fa8401.css",
       "static/chunks/9317-9905cc91ee74e0c7.js",
       "static/chunks/7289-35b73a05821b0f85.js",
       "static/chunks/8720-84a9ef373a7f70f3.js",
@@ -105,9 +105,9 @@
       "static/chunks/7497-37f1443e66c40ab9.js",
       "static/chunks/9511-985b5ed6d2707e26.js",
       "static/chunks/2611-f73dc0572af9ebde.js",
-      "static/chunks/259-7a34c328a3442168.js",
+      "static/chunks/8726-c5786b8bb9c783fa.js",
       "static/chunks/4237-8df6caba13c35991.js",
-      "static/chunks/app/app/page-4e54220602091b3d.js"
+      "static/chunks/app/app/page-8f8dc8345338aec7.js"
     ],
     "/app/programs/page": [
       "static/chunks/webpack-081a9ef58cf08265.js",
@@ -244,22 +244,6 @@
       "static/chunks/7289-35b73a05821b0f85.js",
       "static/chunks/app/credit/applications/page-ba36dcf8f88544db.js"
     ],
-    "/credit/new/page": [
-      "static/chunks/webpack-081a9ef58cf08265.js",
-      "static/chunks/4bd1b696-100b9d70ed4e49c1.js",
-      "static/chunks/1255-7b4b5a04291b6a94.js",
-      "static/chunks/main-app-09bf114d14847590.js",
-      "static/chunks/9317-9905cc91ee74e0c7.js",
-      "static/chunks/8695-aa4905920c1cb939.js",
-      "static/chunks/342-3b5bff872d1279fb.js",
-      "static/chunks/2619-04bc32f026a0d946.js",
-      "static/chunks/7289-35b73a05821b0f85.js",
-      "static/chunks/8720-84a9ef373a7f70f3.js",
-      "static/chunks/9873-bf4e7ab582ab5b70.js",
-      "static/chunks/4298-2e23ff65c452d77e.js",
-      "static/chunks/7497-37f1443e66c40ab9.js",
-      "static/chunks/app/credit/new/page-cf86e5e8e4532e88.js"
-    ],
     "/credit/banks/page": [
       "static/chunks/webpack-081a9ef58cf08265.js",
       "static/chunks/4bd1b696-100b9d70ed4e49c1.js",
@@ -277,6 +261,22 @@
       "static/chunks/9511-985b5ed6d2707e26.js",
       "static/chunks/4936-cade0ebb07a51c94.js",
       "static/chunks/app/credit/banks/page-0d54e4f5409adf6e.js"
+    ],
+    "/credit/new/page": [
+      "static/chunks/webpack-081a9ef58cf08265.js",
+      "static/chunks/4bd1b696-100b9d70ed4e49c1.js",
+      "static/chunks/1255-7b4b5a04291b6a94.js",
+      "static/chunks/main-app-09bf114d14847590.js",
+      "static/chunks/9317-9905cc91ee74e0c7.js",
+      "static/chunks/8695-aa4905920c1cb939.js",
+      "static/chunks/342-3b5bff872d1279fb.js",
+      "static/chunks/2619-04bc32f026a0d946.js",
+      "static/chunks/7289-35b73a05821b0f85.js",
+      "static/chunks/8720-84a9ef373a7f70f3.js",
+      "static/chunks/9873-bf4e7ab582ab5b70.js",
+      "static/chunks/4298-2e23ff65c452d77e.js",
+      "static/chunks/7497-37f1443e66c40ab9.js",
+      "static/chunks/app/credit/new/page-cf86e5e8e4532e88.js"
     ],
     "/credit/page": [
       "static/chunks/webpack-081a9ef58cf08265.js",
@@ -323,23 +323,6 @@
       "static/chunks/7497-37f1443e66c40ab9.js",
       "static/chunks/app/dashboard/fees/page-d70698df2ae09703.js"
     ],
-    "/dashboard/onboarding/page": [
-      "static/chunks/webpack-081a9ef58cf08265.js",
-      "static/chunks/4bd1b696-100b9d70ed4e49c1.js",
-      "static/chunks/1255-7b4b5a04291b6a94.js",
-      "static/chunks/main-app-09bf114d14847590.js",
-      "static/chunks/9317-9905cc91ee74e0c7.js",
-      "static/chunks/8695-aa4905920c1cb939.js",
-      "static/chunks/342-3b5bff872d1279fb.js",
-      "static/chunks/2619-04bc32f026a0d946.js",
-      "static/chunks/7289-35b73a05821b0f85.js",
-      "static/chunks/8720-84a9ef373a7f70f3.js",
-      "static/chunks/9873-bf4e7ab582ab5b70.js",
-      "static/chunks/4298-2e23ff65c452d77e.js",
-      "static/chunks/7497-37f1443e66c40ab9.js",
-      "static/chunks/8079-e78885a7f7127314.js",
-      "static/chunks/app/dashboard/onboarding/page-86a7eb7a7c732598.js"
-    ],
     "/dashboard/financing-banks/page": [
       "static/chunks/webpack-081a9ef58cf08265.js",
       "static/chunks/4bd1b696-100b9d70ed4e49c1.js",
@@ -357,6 +340,23 @@
       "static/chunks/9511-985b5ed6d2707e26.js",
       "static/chunks/4936-cade0ebb07a51c94.js",
       "static/chunks/app/dashboard/financing-banks/page-e9298e06663de009.js"
+    ],
+    "/dashboard/onboarding/page": [
+      "static/chunks/webpack-081a9ef58cf08265.js",
+      "static/chunks/4bd1b696-100b9d70ed4e49c1.js",
+      "static/chunks/1255-7b4b5a04291b6a94.js",
+      "static/chunks/main-app-09bf114d14847590.js",
+      "static/chunks/9317-9905cc91ee74e0c7.js",
+      "static/chunks/8695-aa4905920c1cb939.js",
+      "static/chunks/342-3b5bff872d1279fb.js",
+      "static/chunks/2619-04bc32f026a0d946.js",
+      "static/chunks/7289-35b73a05821b0f85.js",
+      "static/chunks/8720-84a9ef373a7f70f3.js",
+      "static/chunks/9873-bf4e7ab582ab5b70.js",
+      "static/chunks/4298-2e23ff65c452d77e.js",
+      "static/chunks/7497-37f1443e66c40ab9.js",
+      "static/chunks/8079-e78885a7f7127314.js",
+      "static/chunks/app/dashboard/onboarding/page-86a7eb7a7c732598.js"
     ],
     "/dashboard/page": [
       "static/chunks/webpack-081a9ef58cf08265.js",

@@ -105,6 +105,17 @@
 user_problem_statement: "Redesign the parent's EMI selection & fee-financing application journey per the uploaded PDF (screen-wise changes). Backend change: /parent/financing/preview & /parent/pay-financing now return/store a 1% (incl. GST) processing fee, apr, total_repayment, amount_payable_now, requires_docs, and an agreement_id."
 
 backend:
+  - task: "Phase 2 — parent financing Screen 1 wiring: GET /api/parent/financing/bank-config + advance-EMI vs down-payment + min-loan enforcement in /api/parent/financing/preview & /api/parent/pay-financing"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Reads active financing bank (db.financing_banks find active=True; seeded 'CSB Bank Limited' has advance_emi=True, min_loan_amount=25000). NEW GET /api/parent/financing/bank-config -> {id,name,advance_emi,min_loan_amount}. /api/parent/financing/preview: advance mode -> down forced 0, financed=full amount, advance_amount=emi, amount_payable_now=advance_amount+processing_fee; down mode -> financed=amount-down. Returns advance_mode, advance_amount, min_loan_amount, meets_min, bank_name. /api/parent/pay-financing applies same logic and RAISES HTTP 400 when financed < min_loan_amount; stores advance_mode/advance_amount/amount_payable_now/bank_name. Auth parent@biglyp.com/parent123. Verify: bank-config advance_emi true & min 25000; preview amount=138000,down=50000,tenure=3 -> financed 138000 (down ignored), emi 46000, advance_amount 46000, amount_payable_now 47628, meets_min true; preview amount=20000 -> meets_min false. For pay-financing use a real pending student under the parent (GET /api/parent/fees to find student_id + fee_head_ids)."
   - task: "Financing Banks CRUD — /api/credit/financing-banks (list, create, get-by-id full config, update, delete)"
     implemented: true
     working: true
@@ -503,14 +514,14 @@ frontend:
 
 test_plan:
   current_focus:
-    - "Financing Banks CRUD — /api/credit/financing-banks (list, create, get-by-id full config, update, delete)"
+    - "Phase 2 — parent financing Screen 1 wiring: GET /api/parent/financing/bank-config + advance-EMI vs down-payment + min-loan enforcement in /api/parent/financing/preview & /api/parent/pay-financing"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     -agent: "main"
-    -message: "Phase 1 (School Fee Financing gap list) implemented: financing-banks CRUD in backend/credit.py. Please test ONLY the new /api/credit/financing-banks endpoints (list/create/get-by-id/update/delete), role-guards, nested config round-trip, and 404/403 cases. Auth: admin=creditops@biglyp.com/creditops123 (or admin@biglyp.com/admin123); non-admin=parent@biglyp.com/parent123. Do not re-test previously-passing tasks."
+    -message: "Phase 2 backend ready. Please test ONLY the parent financing endpoints: GET /api/parent/financing/bank-config, POST /api/parent/financing/preview (advance mode ignores down_payment, financed=full; meets_min flag), and POST /api/parent/pay-financing (advance/down logic + HTTP 400 when financed below min_loan_amount). Auth: parent@biglyp.com/parent123. For pay-financing, first GET /api/parent/fees to obtain a student_id and fee_head_ids. Do not re-test Phase 1 CRUD (already green)."
 
   - task: "Fee Reminders — configurable auto reminders + manual Send Now + queued email log"
     implemented: true
