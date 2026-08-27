@@ -31,6 +31,7 @@ export function DashboardLayout({ children, title }) {
     ? [
         ...ADMIN_NAV.slice(0, 6),
         { to: "/dashboard/financing-banks", label: "Financing Banks", icon: Building2, testid: "nav-financing-banks" },
+        { to: "/dashboard/schools", label: "Schools", icon: GraduationCap, testid: "nav-schools" },
         ...ADMIN_NAV.slice(6),
       ]
     : ADMIN_NAV;

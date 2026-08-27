@@ -105,6 +105,21 @@
 user_problem_statement: "Redesign the parent's EMI selection & fee-financing application journey per the uploaded PDF (screen-wise changes). Backend change: /parent/financing/preview & /parent/pay-financing now return/store a 1% (incl. GST) processing fee, apr, total_repayment, amount_payable_now, requires_docs, and an agreement_id."
 
 backend:
+  - task: "School↔Bank financing management — /api/credit/fin-schools CRUD + /api/credit/dummy-banks + GET-by-school-ID lookup"
+    implemented: true
+    working: true
+    file: "backend/credit.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "New self-contained admin module (uses a HARDCODED/dummy bank list; independent of Bucket 1's real bank API). New collection `fin_schools` (UUID id). Endpoints under prefix /api/credit — auth with admin@biglyp.com/admin123 (super_admin) or creditops@biglyp.com/creditops123 (credit_ops). ADMIN_ROLES = super_admin, credit_ops. (1) GET /api/credit/dummy-banks (any authenticated) returns a hardcoded list of 10 banks each {id,name} (hdfc, icici, axis, sbi, kotak, csb, idfc, yes, federal, bajaj). (2) POST /api/credit/fin-schools (admin) body {name, financing_enabled:bool, banks:[{bank_id, bank_name?, interest_rate:float, priority:int}]} -> creates school, returns {id, name, financing_enabled, banks[], created_at, updated_at}. banks are auto-filled bank_name from dummy list and SORTED by priority asc (auto-selection order). Verify: create with two banks {hdfc rate 12.5 priority 2, icici rate 11.9 priority 1} returns banks with ICICI first (priority 1). (3) GET /api/credit/fin-schools (admin) lists all schools sorted by name, each with normalised/sorted banks. (4) GET /api/credit/fin-schools/{id} (any authenticated — the GET-by-school-ID lookup) returns attached banks with independent rates + priority order + financing_enabled toggle state; 404 for unknown id. (5) PUT /api/credit/fin-schools/{id} (admin) updates name/financing_enabled/banks (independent rates preserved per pair; re-sorted by priority); updated_at changes; 404 for unknown id. (6) DELETE /api/credit/fin-schools/{id} (admin) removes; 404 for unknown id. (7) name empty -> HTTP 400. (8) 403 for parent (non-admin) on list/create/update/delete; parent CAN call GET-by-id and dummy-banks (any authenticated). (9) 401 without auth. Smoke-tested manually via curl (create/get-by-id sorting/list/delete all OK)."
+        -working: true
+        -agent: "testing"
+        -comment: "Comprehensive testing completed. All 17 tests passed (9 scenarios). (1) GET /api/credit/dummy-banks (authenticated): HTTP 200, returned 10 banks with correct IDs [hdfc, icici, axis, sbi, kotak, csb, idfc, yes, federal, bajaj], each bank has {id, name} structure. (2) POST /api/credit/fin-schools (priority sorting): HTTP 200, created school 'Sunrise Academy' with financing_enabled=true, banks array with 2 entries, CRITICAL VERIFICATION: banks sorted by priority ascending - ICICI Bank (priority 1, rate 11.9) comes FIRST, HDFC Bank (priority 2, rate 12.5) comes SECOND, bank_name auto-filled correctly from dummy list, independent interest rates preserved (11.9 and 12.5), response includes id, name, financing_enabled, banks, created_at, updated_at. (3) GET /api/credit/fin-schools (list): HTTP 200, returned 1 school including created 'Sunrise Academy', banks normalized and sorted by priority (ICICI first, HDFC second). (4) GET /api/credit/fin-schools/{id} (authenticated): HTTP 200, returned school with id, name='Sunrise Academy', financing_enabled=true, banks array with 2 entries sorted by priority (ICICI priority 1 rate 11.9, HDFC priority 2 rate 12.5), independent rates and priority order verified. (5) GET /api/credit/fin-schools/{unknown_id}: HTTP 404 (correct). (6) PUT /api/credit/fin-schools/{id} (update): HTTP 200, updated school with financing_enabled=false, banks array with 3 entries sorted by priority ascending (Axis Bank priority 1 rate 13.0 FIRST, HDFC Bank priority 2 rate 12.5 SECOND, ICICI Bank priority 3 rate 10.5 THIRD), independent rates preserved and updated correctly, updated_at changed. (7) PUT /api/credit/fin-schools/{unknown_id}: HTTP 404 (correct). (8) POST with empty name: HTTP 400 (validation working). (9) Authorization tests: Parent (non-admin) GET list HTTP 403, POST create HTTP 403, PUT update HTTP 403, DELETE HTTP 403 (all admin endpoints correctly blocked); Parent CAN call GET /api/credit/fin-schools/{id} HTTP 200 (authenticated non-admin correctly allowed for GET-by-school-ID lookup); Parent CAN call GET /api/credit/dummy-banks HTTP 200 (any authenticated correctly allowed). (10) No auth header: GET dummy-banks HTTP 401, GET fin-schools list HTTP 401 (authentication required). (11) DELETE /api/credit/fin-schools/{id}: HTTP 200 {ok:true}, subsequent GET returns HTTP 404 (school removed). (12) DELETE /api/credit/fin-schools/{unknown_id}: HTTP 404 (correct). All CRUD operations, priority-based sorting, independent interest rates, bank_name auto-fill, role-based access control, authentication, validation, and error responses working correctly. Feature working correctly."
+
   - task: "Phase 2 — parent financing Screen 1 wiring: GET /api/parent/financing/bank-config + advance-EMI vs down-payment + min-loan enforcement in /api/parent/financing/preview & /api/parent/pay-financing"
     implemented: true
     working: "NA"
@@ -514,14 +529,14 @@ frontend:
 
 test_plan:
   current_focus:
-    - "Phase 2 — parent financing Screen 1 wiring: GET /api/parent/financing/bank-config + advance-EMI vs down-payment + min-loan enforcement in /api/parent/financing/preview & /api/parent/pay-financing"
+    - "School↔Bank financing management — /api/credit/fin-schools CRUD + /api/credit/dummy-banks + GET-by-school-ID lookup"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     -agent: "main"
-    -message: "Phase 2 backend ready. Please test ONLY the parent financing endpoints: GET /api/parent/financing/bank-config, POST /api/parent/financing/preview (advance mode ignores down_payment, financed=full; meets_min flag), and POST /api/parent/pay-financing (advance/down logic + HTTP 400 when financed below min_loan_amount). Auth: parent@biglyp.com/parent123. For pay-financing, first GET /api/parent/fees to obtain a student_id and fee_head_ids. Do not re-test Phase 1 CRUD (already green)."
+    -message: "NEW feature to test ONLY: School↔Bank financing management endpoints in backend/credit.py (prefix /api/credit). Endpoints: GET /dummy-banks, GET /fin-schools, POST /fin-schools, GET /fin-schools/{id}, PUT /fin-schools/{id}, DELETE /fin-schools/{id}. Auth admin: admin@biglyp.com/admin123 (super_admin). Non-admin for 403 checks: parent@biglyp.com/parent123 (parent). Key checks: (a) create a school with multiple banks having INDEPENDENT interest rates + priority; response banks sorted by priority asc. (b) GET-by-id returns attached banks + rates + priority order + financing_enabled toggle. (c) PUT updates rates/priority/toggle and re-sorts; updated_at changes. (d) DELETE works + 404 on missing id. (e) empty name -> 400. (f) 403 for parent on list/create/update/delete; parent CAN call GET-by-id and GET /dummy-banks. (g) 401 without auth. Do NOT re-test other already-green features."
 
   - task: "Fee Reminders — configurable auto reminders + manual Send Now + queued email log"
     implemented: true

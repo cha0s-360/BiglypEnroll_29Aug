@@ -549,6 +549,126 @@ async def delete_financing_bank(bid: str, user: dict = Depends(require_roles(*AD
     return {"ok": True}
 
 
+# ---------------------------------- school ↔ bank financing management --------
+# Self-contained admin module. Uses a HARDCODED/DUMMY bank list (does not depend
+# on Bucket 1's real bank API). Each school can attach multiple banks, each with
+# an INDEPENDENT interest rate (per bank-school pair) and a priority/ranking used
+# for auto-selection, plus a per-school financing on/off toggle.
+DUMMY_BANKS = [
+    {"id": "hdfc", "name": "HDFC Bank"},
+    {"id": "icici", "name": "ICICI Bank"},
+    {"id": "axis", "name": "Axis Bank"},
+    {"id": "sbi", "name": "State Bank of India"},
+    {"id": "kotak", "name": "Kotak Mahindra Bank"},
+    {"id": "csb", "name": "CSB Bank Limited"},
+    {"id": "idfc", "name": "IDFC First Bank"},
+    {"id": "yes", "name": "YES Bank"},
+    {"id": "federal", "name": "Federal Bank"},
+    {"id": "bajaj", "name": "Bajaj Finserv"},
+]
+_DUMMY_BANK_NAMES = {b["id"]: b["name"] for b in DUMMY_BANKS}
+
+
+class SchoolBankIn(BaseModel):
+    bank_id: str
+    bank_name: str = ""
+    interest_rate: float = 0.0        # independent per bank-school pair
+    priority: int = 1                 # 1 = highest priority for auto-selection
+
+
+class FinSchoolIn(BaseModel):
+    name: str
+    financing_enabled: bool = True    # product control toggle for this school
+    banks: List[SchoolBankIn] = Field(default_factory=list)
+
+
+def _normalise_fin_school_banks(banks: List[dict]) -> List[dict]:
+    """Fill bank_name from the dummy list and sort by priority (auto-selection order)."""
+    out = []
+    for b in banks:
+        bid = b.get("bank_id")
+        out.append({
+            "bank_id": bid,
+            "bank_name": b.get("bank_name") or _DUMMY_BANK_NAMES.get(bid, bid or ""),
+            "interest_rate": float(b.get("interest_rate") or 0),
+            "priority": int(b.get("priority") or 1),
+        })
+    out.sort(key=lambda x: (x["priority"], x["bank_name"]))
+    return out
+
+
+@credit_router.get("/dummy-banks")
+async def list_dummy_banks(user: dict = Depends(get_current_user)):
+    """Hardcoded/dummy bank catalogue for attaching to schools."""
+    return DUMMY_BANKS
+
+
+@credit_router.get("/fin-schools")
+async def list_fin_schools(user: dict = Depends(require_roles(*ADMIN_ROLES))):
+    out = []
+    async for s in db.fin_schools.find():
+        s = clean(s)
+        s["banks"] = _normalise_fin_school_banks(s.get("banks", []))
+        out.append(s)
+    out.sort(key=lambda x: (x.get("name") or "").lower())
+    return out
+
+
+@credit_router.post("/fin-schools")
+async def create_fin_school(body: FinSchoolIn, user: dict = Depends(require_roles(*ADMIN_ROLES))):
+    if not body.name.strip():
+        raise HTTPException(status_code=400, detail="School name is required")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "name": body.name.strip(),
+        "financing_enabled": body.financing_enabled,
+        "banks": _normalise_fin_school_banks([b.model_dump() for b in body.banks]),
+        "created_at": now_iso(),
+        "updated_at": now_iso(),
+    }
+    await db.fin_schools.insert_one(doc)
+    return clean(doc)
+
+
+@credit_router.get("/fin-schools/{sid}")
+async def get_fin_school(sid: str, user: dict = Depends(get_current_user)):
+    """GET-by-school-ID lookup: attached banks (with independent rates + priority
+    order) and the financing toggle state. Consumed by later financing buckets."""
+    doc = await db.fin_schools.find_one({"id": sid})
+    if not doc:
+        raise HTTPException(status_code=404, detail="School not found")
+    doc = clean(doc)
+    doc["banks"] = _normalise_fin_school_banks(doc.get("banks", []))
+    return doc
+
+
+@credit_router.put("/fin-schools/{sid}")
+async def update_fin_school(sid: str, body: FinSchoolIn, user: dict = Depends(require_roles(*ADMIN_ROLES))):
+    existing = await db.fin_schools.find_one({"id": sid})
+    if not existing:
+        raise HTTPException(status_code=404, detail="School not found")
+    if not body.name.strip():
+        raise HTTPException(status_code=400, detail="School name is required")
+    await db.fin_schools.update_one({"id": sid}, {"$set": {
+        "name": body.name.strip(),
+        "financing_enabled": body.financing_enabled,
+        "banks": _normalise_fin_school_banks([b.model_dump() for b in body.banks]),
+        "updated_at": now_iso(),
+    }})
+    doc = clean(await db.fin_schools.find_one({"id": sid}))
+    doc["banks"] = _normalise_fin_school_banks(doc.get("banks", []))
+    return doc
+
+
+@credit_router.delete("/fin-schools/{sid}")
+async def delete_fin_school(sid: str, user: dict = Depends(require_roles(*ADMIN_ROLES))):
+    res = await db.fin_schools.delete_one({"id": sid})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="School not found")
+    return {"ok": True}
+
+
+
 # --------------------------------------------------------- applications -------
 def _public_app(app: dict, role: str):
     """Return app with PII masked for non-admin roles."""

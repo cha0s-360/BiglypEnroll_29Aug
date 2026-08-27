@@ -1,762 +1,565 @@
-#!/usr/bin/env python3
 """
-BiglypEnroll Backend API Testing Suite
-Tests Financing Banks CRUD endpoints in backend/credit.py
+Backend API Testing for School↔Bank Financing Management
+Tests /api/credit/dummy-banks and /api/credit/fin-schools CRUD endpoints
 """
 import requests
 import json
-import sys
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List
 
-# Read backend URL from frontend/.env
-def get_backend_url():
-    try:
-        with open('/app/frontend/.env', 'r') as f:
-            for line in f:
-                if line.startswith('REACT_APP_BACKEND_URL='):
-                    return line.split('=', 1)[1].strip()
-    except Exception as e:
-        print(f"❌ Error reading backend URL: {e}")
-        sys.exit(1)
-    return None
+# Base URL from frontend/.env
+BASE_URL = "https://github-preview-63.preview.emergentagent.com/api"
 
-BASE_URL = get_backend_url()
-if not BASE_URL:
-    print("❌ REACT_APP_BACKEND_URL not found in /app/frontend/.env")
-    sys.exit(1)
+# Test credentials
+ADMIN_EMAIL = "admin@biglyp.com"
+ADMIN_PASSWORD = "admin123"
+PARENT_EMAIL = "parent@biglyp.com"
+PARENT_PASSWORD = "parent123"
 
-print(f"🔗 Backend URL: {BASE_URL}")
+# Global variables to store tokens and created resources
+admin_token = None
+parent_token = None
+created_school_ids = []
 
-# Test results tracking
-test_results = {
-    "passed": 0,
-    "failed": 0,
-    "details": []
-}
 
-def log_test(name: str, passed: bool, details: str = ""):
-    """Log test result"""
-    status = "✅ PASS" if passed else "❌ FAIL"
-    print(f"{status}: {name}")
-    if details:
-        print(f"   {details}")
-    
-    test_results["passed" if passed else "failed"] += 1
-    test_results["details"].append({
-        "name": name,
-        "passed": passed,
-        "details": details
-    })
-
-def login(email: str, password: str) -> Optional[str]:
-    """Login and return access token"""
-    try:
-        response = requests.post(
-            f"{BASE_URL}/api/auth/login",
-            json={"email": email, "password": password},
-            timeout=10
-        )
-        if response.status_code == 200:
-            data = response.json()
-            token = data.get("token")  # Backend returns "token" not "access_token"
-            print(f"✅ Logged in as {email}")
-            return token
-        else:
-            print(f"❌ Login failed for {email}: {response.status_code} - {response.text}")
-            return None
-    except Exception as e:
-        print(f"❌ Login error for {email}: {e}")
+def login(email: str, password: str) -> str:
+    """Login and return Bearer token"""
+    url = f"{BASE_URL}/auth/login"
+    response = requests.post(url, json={"email": email, "password": password})
+    print(f"Login {email}: {response.status_code}")
+    if response.status_code == 200:
+        data = response.json()
+        token = data.get("token")
+        print(f"  Token received: {token[:20]}..." if token else "  No token in response")
+        return token
+    else:
+        print(f"  Login failed: {response.text}")
         return None
 
-def test_financing_banks_crud():
-    """Test Financing Banks CRUD endpoints"""
-    print("\n" + "="*80)
-    print("TESTING: Financing Banks CRUD Endpoints")
-    print("="*80 + "\n")
-    
-    # ========================================================================
-    # Scenario 1: Login as creditops and GET list
-    # ========================================================================
-    print("\n--- Scenario 1: Login as creditops and GET list ---")
-    creditops_token = login("creditops@biglyp.com", "creditops123")
-    if not creditops_token:
-        log_test("Scenario 1: Login as creditops", False, "Login failed")
-        return
-    
-    log_test("Scenario 1: Login as creditops", True, "Successfully logged in")
-    
-    # GET list of financing banks
-    try:
-        response = requests.get(
-            f"{BASE_URL}/api/credit/financing-banks",
-            headers={"Authorization": f"Bearer {creditops_token}"},
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            banks = response.json()
-            log_test("Scenario 1: GET list returns 200", True, f"Returned {len(banks)} banks")
-            
-            # Check for seeded "CSB Bank Limited"
-            csb_bank = next((b for b in banks if b.get("name") == "CSB Bank Limited"), None)
-            if csb_bank:
-                # Verify full nested config
-                has_all_fields = all([
-                    "id" in csb_bank,
-                    "name" in csb_bank,
-                    "active" in csb_bank,
-                    "advance_emi" in csb_bank,
-                    "min_loan_amount" in csb_bank,
-                    "location_match_aadhaar" in csb_bank,
-                    "name_match_rule" in csb_bank,
-                    "income_proof" in csb_bank,
-                    "fund_release" in csb_bank,
-                    "created_at" in csb_bank,
-                    "updated_at" in csb_bank
-                ])
-                
-                # Check nested income_proof structure
-                income_proof = csb_bank.get("income_proof", {})
-                has_income_proof_fields = all([
-                    "cibil_threshold" in income_proof,
-                    "income_threshold" in income_proof,
-                    "required_matrix" in income_proof
-                ])
-                
-                # Check nested required_matrix
-                required_matrix = income_proof.get("required_matrix", {})
-                has_matrix_fields = all([
-                    "high_cibil_high_income" in required_matrix,
-                    "high_cibil_low_income" in required_matrix,
-                    "low_cibil_high_income" in required_matrix,
-                    "low_cibil_low_income" in required_matrix
-                ])
-                
-                # Check nested fund_release
-                fund_release = csb_bank.get("fund_release", {})
-                has_fund_release_fields = all([
-                    "multi_account_allowed" in fund_release,
-                    "vendor_external_allowed" in fund_release
-                ])
-                
-                # Check no Mongo _id leaks
-                has_no_mongo_id = "_id" not in csb_bank
-                
-                if has_all_fields and has_income_proof_fields and has_matrix_fields and has_fund_release_fields and has_no_mongo_id:
-                    log_test("Scenario 1: CSB Bank Limited found with full nested config", True, 
-                            f"All fields present, no _id leak")
-                else:
-                    missing = []
-                    if not has_all_fields:
-                        missing.append("top-level fields")
-                    if not has_income_proof_fields:
-                        missing.append("income_proof fields")
-                    if not has_matrix_fields:
-                        missing.append("required_matrix fields")
-                    if not has_fund_release_fields:
-                        missing.append("fund_release fields")
-                    if not has_no_mongo_id:
-                        missing.append("_id leaked")
-                    log_test("Scenario 1: CSB Bank Limited config incomplete", False, 
-                            f"Missing: {', '.join(missing)}")
-            else:
-                log_test("Scenario 1: CSB Bank Limited not found", False, "Seeded bank missing")
-        else:
-            log_test("Scenario 1: GET list returns 200", False, 
-                    f"Status: {response.status_code}, Body: {response.text[:200]}")
-    except Exception as e:
-        log_test("Scenario 1: GET list", False, f"Exception: {e}")
-    
-    # ========================================================================
-    # Scenario 2: POST create a new bank with ALL fields
-    # ========================================================================
-    print("\n--- Scenario 2: POST create a new bank with ALL fields ---")
-    new_bank_data = {
-        "name": "Test Bank Ltd",
-        "active": True,
-        "advance_emi": True,
-        "min_loan_amount": 30000,
-        "location_match_aadhaar": True,
-        "name_match_rule": "pan",
-        "income_proof": {
-            "cibil_threshold": 760,
-            "income_threshold": 800000,
-            "required_matrix": {
-                "high_cibil_high_income": False,
-                "high_cibil_low_income": True,
-                "low_cibil_high_income": True,
-                "low_cibil_low_income": True
-            }
-        },
-        "fund_release": {
-            "multi_account_allowed": True,
-            "vendor_external_allowed": False
-        }
-    }
-    
-    created_bank_id = None
-    try:
-        response = requests.post(
-            f"{BASE_URL}/api/credit/financing-banks",
-            headers={"Authorization": f"Bearer {creditops_token}"},
-            json=new_bank_data,
-            timeout=10
-        )
-        
-        if response.status_code in [200, 201]:
-            created_bank = response.json()
-            created_bank_id = created_bank.get("id")
-            
-            # Verify response has id (UUID)
-            if created_bank_id and len(created_bank_id) == 36:
-                log_test("Scenario 2: POST returns id (UUID)", True, f"id: {created_bank_id}")
-            else:
-                log_test("Scenario 2: POST returns id (UUID)", False, f"Invalid id: {created_bank_id}")
-            
-            # Verify all fields echoed back
-            fields_match = all([
-                created_bank.get("name") == new_bank_data["name"],
-                created_bank.get("active") == new_bank_data["active"],
-                created_bank.get("advance_emi") == new_bank_data["advance_emi"],
-                created_bank.get("min_loan_amount") == new_bank_data["min_loan_amount"],
-                created_bank.get("location_match_aadhaar") == new_bank_data["location_match_aadhaar"],
-                created_bank.get("name_match_rule") == new_bank_data["name_match_rule"]
-            ])
-            
-            # Verify nested income_proof
-            income_proof = created_bank.get("income_proof", {})
-            income_proof_match = all([
-                income_proof.get("cibil_threshold") == new_bank_data["income_proof"]["cibil_threshold"],
-                income_proof.get("income_threshold") == new_bank_data["income_proof"]["income_threshold"]
-            ])
-            
-            # Verify nested required_matrix
-            required_matrix = income_proof.get("required_matrix", {})
-            matrix_match = all([
-                required_matrix.get("high_cibil_high_income") == new_bank_data["income_proof"]["required_matrix"]["high_cibil_high_income"],
-                required_matrix.get("high_cibil_low_income") == new_bank_data["income_proof"]["required_matrix"]["high_cibil_low_income"],
-                required_matrix.get("low_cibil_high_income") == new_bank_data["income_proof"]["required_matrix"]["low_cibil_high_income"],
-                required_matrix.get("low_cibil_low_income") == new_bank_data["income_proof"]["required_matrix"]["low_cibil_low_income"]
-            ])
-            
-            # Verify nested fund_release
-            fund_release = created_bank.get("fund_release", {})
-            fund_release_match = all([
-                fund_release.get("multi_account_allowed") == new_bank_data["fund_release"]["multi_account_allowed"],
-                fund_release.get("vendor_external_allowed") == new_bank_data["fund_release"]["vendor_external_allowed"]
-            ])
-            
-            # Verify no Mongo _id leak
-            no_mongo_id = "_id" not in created_bank
-            
-            if fields_match and income_proof_match and matrix_match and fund_release_match and no_mongo_id:
-                log_test("Scenario 2: POST echoes ALL fields correctly", True, 
-                        "All fields including nested income_proof.required_matrix and fund_release match")
-            else:
-                issues = []
-                if not fields_match:
-                    issues.append("top-level fields mismatch")
-                if not income_proof_match:
-                    issues.append("income_proof mismatch")
-                if not matrix_match:
-                    issues.append("required_matrix mismatch")
-                if not fund_release_match:
-                    issues.append("fund_release mismatch")
-                if not no_mongo_id:
-                    issues.append("_id leaked")
-                log_test("Scenario 2: POST echoes ALL fields correctly", False, 
-                        f"Issues: {', '.join(issues)}")
-        else:
-            log_test("Scenario 2: POST create bank", False, 
-                    f"Status: {response.status_code}, Body: {response.text[:200]}")
-    except Exception as e:
-        log_test("Scenario 2: POST create bank", False, f"Exception: {e}")
-    
-    if not created_bank_id:
-        print("\n⚠️  Cannot continue with scenarios 3-5 without created bank id")
-        return
-    
-    # ========================================================================
-    # Scenario 3: GET /api/credit/financing-banks/{id} for the created bank
-    # ========================================================================
-    print("\n--- Scenario 3: GET by id for the created bank ---")
-    try:
-        response = requests.get(
-            f"{BASE_URL}/api/credit/financing-banks/{created_bank_id}",
-            headers={"Authorization": f"Bearer {creditops_token}"},
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            bank = response.json()
-            
-            # Verify full config identical to what was saved
-            config_match = all([
-                bank.get("id") == created_bank_id,
-                bank.get("name") == new_bank_data["name"],
-                bank.get("active") == new_bank_data["active"],
-                bank.get("advance_emi") == new_bank_data["advance_emi"],
-                bank.get("min_loan_amount") == new_bank_data["min_loan_amount"],
-                bank.get("location_match_aadhaar") == new_bank_data["location_match_aadhaar"],
-                bank.get("name_match_rule") == new_bank_data["name_match_rule"]
-            ])
-            
-            # Verify nested structures
-            income_proof = bank.get("income_proof", {})
-            required_matrix = income_proof.get("required_matrix", {})
-            fund_release = bank.get("fund_release", {})
-            
-            nested_match = all([
-                income_proof.get("cibil_threshold") == new_bank_data["income_proof"]["cibil_threshold"],
-                income_proof.get("income_threshold") == new_bank_data["income_proof"]["income_threshold"],
-                required_matrix.get("high_cibil_high_income") == new_bank_data["income_proof"]["required_matrix"]["high_cibil_high_income"],
-                required_matrix.get("high_cibil_low_income") == new_bank_data["income_proof"]["required_matrix"]["high_cibil_low_income"],
-                required_matrix.get("low_cibil_high_income") == new_bank_data["income_proof"]["required_matrix"]["low_cibil_high_income"],
-                required_matrix.get("low_cibil_low_income") == new_bank_data["income_proof"]["required_matrix"]["low_cibil_low_income"],
-                fund_release.get("multi_account_allowed") == new_bank_data["fund_release"]["multi_account_allowed"],
-                fund_release.get("vendor_external_allowed") == new_bank_data["fund_release"]["vendor_external_allowed"]
-            ])
-            
-            if config_match and nested_match:
-                log_test("Scenario 3: GET by id returns full config", True, 
-                        "Config identical to what was saved")
-            else:
-                log_test("Scenario 3: GET by id returns full config", False, 
-                        "Config mismatch")
-        else:
-            log_test("Scenario 3: GET by id", False, 
-                    f"Status: {response.status_code}, Body: {response.text[:200]}")
-    except Exception as e:
-        log_test("Scenario 3: GET by id", False, f"Exception: {e}")
-    
-    # ========================================================================
-    # Scenario 4: PUT update the created bank
-    # ========================================================================
-    print("\n--- Scenario 4: PUT update the created bank ---")
-    update_data = {
-        "name": "Test Bank Renamed",
-        "active": True,
-        "advance_emi": False,  # changed
-        "min_loan_amount": 50000,  # changed
-        "location_match_aadhaar": True,
-        "name_match_rule": "aadhaar",  # changed
-        "income_proof": {
-            "cibil_threshold": 760,
-            "income_threshold": 800000,
-            "required_matrix": {
-                "high_cibil_high_income": True,  # flipped
-                "high_cibil_low_income": True,
-                "low_cibil_high_income": True,
-                "low_cibil_low_income": True
-            }
-        },
-        "fund_release": {
-            "multi_account_allowed": True,
-            "vendor_external_allowed": True  # changed
-        }
-    }
-    
-    original_updated_at = None
-    try:
-        # Get original updated_at
-        response = requests.get(
-            f"{BASE_URL}/api/credit/financing-banks/{created_bank_id}",
-            headers={"Authorization": f"Bearer {creditops_token}"},
-            timeout=10
-        )
-        if response.status_code == 200:
-            original_updated_at = response.json().get("updated_at")
-        
-        # Update
-        response = requests.put(
-            f"{BASE_URL}/api/credit/financing-banks/{created_bank_id}",
-            headers={"Authorization": f"Bearer {creditops_token}"},
-            json=update_data,
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            updated_bank = response.json()
-            
-            # Verify changes persisted
-            changes_match = all([
-                updated_bank.get("name") == "Test Bank Renamed",
-                updated_bank.get("advance_emi") == False,
-                updated_bank.get("min_loan_amount") == 50000,
-                updated_bank.get("name_match_rule") == "aadhaar"
-            ])
-            
-            # Verify nested changes
-            income_proof = updated_bank.get("income_proof", {})
-            required_matrix = income_proof.get("required_matrix", {})
-            fund_release = updated_bank.get("fund_release", {})
-            
-            nested_changes_match = all([
-                required_matrix.get("high_cibil_high_income") == True,
-                fund_release.get("vendor_external_allowed") == True
-            ])
-            
-            # Verify updated_at changed
-            new_updated_at = updated_bank.get("updated_at")
-            updated_at_changed = new_updated_at != original_updated_at
-            
-            if changes_match and nested_changes_match:
-                log_test("Scenario 4: PUT persists changes", True, 
-                        "All changes including nested fields persisted")
-            else:
-                log_test("Scenario 4: PUT persists changes", False, 
-                        "Some changes not persisted")
-            
-            if updated_at_changed:
-                log_test("Scenario 4: PUT updates updated_at", True, 
-                        f"Changed from {original_updated_at} to {new_updated_at}")
-            else:
-                log_test("Scenario 4: PUT updates updated_at", False, 
-                        "updated_at did not change")
-        else:
-            log_test("Scenario 4: PUT update bank", False, 
-                    f"Status: {response.status_code}, Body: {response.text[:200]}")
-    except Exception as e:
-        log_test("Scenario 4: PUT update bank", False, f"Exception: {e}")
-    
-    # ========================================================================
-    # Scenario 5: DELETE, GET (404), DELETE again (404)
-    # ========================================================================
-    print("\n--- Scenario 5: DELETE, GET (404), DELETE again (404) ---")
-    try:
-        # DELETE
-        response = requests.delete(
-            f"{BASE_URL}/api/credit/financing-banks/{created_bank_id}",
-            headers={"Authorization": f"Bearer {creditops_token}"},
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            if result.get("ok") == True:
-                log_test("Scenario 5: DELETE returns 200 with ok:true", True, 
-                        f"Response: {result}")
-            else:
-                log_test("Scenario 5: DELETE returns 200 with ok:true", False, 
-                        f"Response: {result}")
-        else:
-            log_test("Scenario 5: DELETE", False, 
-                    f"Status: {response.status_code}, Body: {response.text[:200]}")
-        
-        # GET by deleted id (should be 404)
-        response = requests.get(
-            f"{BASE_URL}/api/credit/financing-banks/{created_bank_id}",
-            headers={"Authorization": f"Bearer {creditops_token}"},
-            timeout=10
-        )
-        
-        if response.status_code == 404:
-            log_test("Scenario 5: GET deleted id returns 404", True, 
-                    "Bank not found after deletion")
-        else:
-            log_test("Scenario 5: GET deleted id returns 404", False, 
-                    f"Status: {response.status_code}, expected 404")
-        
-        # DELETE again (should be 404)
-        response = requests.delete(
-            f"{BASE_URL}/api/credit/financing-banks/{created_bank_id}",
-            headers={"Authorization": f"Bearer {creditops_token}"},
-            timeout=10
-        )
-        
-        if response.status_code == 404:
-            log_test("Scenario 5: DELETE again returns 404", True, 
-                    "Cannot delete already deleted bank")
-        else:
-            log_test("Scenario 5: DELETE again returns 404", False, 
-                    f"Status: {response.status_code}, expected 404")
-    except Exception as e:
-        log_test("Scenario 5: DELETE operations", False, f"Exception: {e}")
-    
-    # ========================================================================
-    # Scenario 6: GET a random non-existent id (404)
-    # ========================================================================
-    print("\n--- Scenario 6: GET a random non-existent id (404) ---")
-    try:
-        fake_id = "00000000-0000-0000-0000-000000000000"
-        response = requests.get(
-            f"{BASE_URL}/api/credit/financing-banks/{fake_id}",
-            headers={"Authorization": f"Bearer {creditops_token}"},
-            timeout=10
-        )
-        
-        if response.status_code == 404:
-            log_test("Scenario 6: GET non-existent id returns 404", True, 
-                    f"Correctly returned 404 for fake id")
-        else:
-            log_test("Scenario 6: GET non-existent id returns 404", False, 
-                    f"Status: {response.status_code}, expected 404")
-    except Exception as e:
-        log_test("Scenario 6: GET non-existent id", False, f"Exception: {e}")
-    
-    # ========================================================================
-    # Scenario 7: Role guard - login as parent
-    # ========================================================================
-    print("\n--- Scenario 7: Role guard - login as parent ---")
-    parent_token = login("parent@biglyp.com", "parent123")
-    if not parent_token:
-        log_test("Scenario 7: Login as parent", False, "Login failed")
-        return
-    
-    log_test("Scenario 7: Login as parent", True, "Successfully logged in")
-    
-    # Get a valid bank id for testing GET by id
-    valid_bank_id = None
-    try:
-        response = requests.get(
-            f"{BASE_URL}/api/credit/financing-banks",
-            headers={"Authorization": f"Bearer {creditops_token}"},
-            timeout=10
-        )
-        if response.status_code == 200:
-            banks = response.json()
-            if banks:
-                valid_bank_id = banks[0].get("id")
-    except:
-        pass
-    
-    # Test GET list (should be 403)
-    try:
-        response = requests.get(
-            f"{BASE_URL}/api/credit/financing-banks",
-            headers={"Authorization": f"Bearer {parent_token}"},
-            timeout=10
-        )
-        
-        if response.status_code == 403:
-            log_test("Scenario 7: Parent GET list returns 403", True, 
-                    "Non-admin blocked from listing banks")
-        else:
-            log_test("Scenario 7: Parent GET list returns 403", False, 
-                    f"Status: {response.status_code}, expected 403")
-    except Exception as e:
-        log_test("Scenario 7: Parent GET list", False, f"Exception: {e}")
-    
-    # Test POST create (should be 403)
-    try:
-        response = requests.post(
-            f"{BASE_URL}/api/credit/financing-banks",
-            headers={"Authorization": f"Bearer {parent_token}"},
-            json={"name": "Test Bank"},
-            timeout=10
-        )
-        
-        if response.status_code == 403:
-            log_test("Scenario 7: Parent POST create returns 403", True, 
-                    "Non-admin blocked from creating banks")
-        else:
-            log_test("Scenario 7: Parent POST create returns 403", False, 
-                    f"Status: {response.status_code}, expected 403")
-    except Exception as e:
-        log_test("Scenario 7: Parent POST create", False, f"Exception: {e}")
-    
-    # Test PUT update (should be 403)
-    if valid_bank_id:
-        try:
-            response = requests.put(
-                f"{BASE_URL}/api/credit/financing-banks/{valid_bank_id}",
-                headers={"Authorization": f"Bearer {parent_token}"},
-                json={"name": "Test Bank Updated"},
-                timeout=10
-            )
-            
-            if response.status_code == 403:
-                log_test("Scenario 7: Parent PUT update returns 403", True, 
-                        "Non-admin blocked from updating banks")
-            else:
-                log_test("Scenario 7: Parent PUT update returns 403", False, 
-                        f"Status: {response.status_code}, expected 403")
-        except Exception as e:
-            log_test("Scenario 7: Parent PUT update", False, f"Exception: {e}")
-    
-    # Test DELETE (should be 403)
-    if valid_bank_id:
-        try:
-            response = requests.delete(
-                f"{BASE_URL}/api/credit/financing-banks/{valid_bank_id}",
-                headers={"Authorization": f"Bearer {parent_token}"},
-                timeout=10
-            )
-            
-            if response.status_code == 403:
-                log_test("Scenario 7: Parent DELETE returns 403", True, 
-                        "Non-admin blocked from deleting banks")
-            else:
-                log_test("Scenario 7: Parent DELETE returns 403", False, 
-                        f"Status: {response.status_code}, expected 403")
-        except Exception as e:
-            log_test("Scenario 7: Parent DELETE", False, f"Exception: {e}")
-    
-    # Test GET by id (should be 200 - any authenticated user allowed)
-    if valid_bank_id:
-        try:
-            response = requests.get(
-                f"{BASE_URL}/api/credit/financing-banks/{valid_bank_id}",
-                headers={"Authorization": f"Bearer {parent_token}"},
-                timeout=10
-            )
-            
-            if response.status_code == 200:
-                log_test("Scenario 7: Parent GET by id returns 200", True, 
-                        "Authenticated non-admin allowed to lookup bank config")
-            else:
-                log_test("Scenario 7: Parent GET by id returns 200", False, 
-                        f"Status: {response.status_code}, expected 200")
-        except Exception as e:
-            log_test("Scenario 7: Parent GET by id", False, f"Exception: {e}")
-    
-    # ========================================================================
-    # Scenario 8: Unauthenticated (no token) on any endpoint (401)
-    # ========================================================================
-    print("\n--- Scenario 8: Unauthenticated (no token) on any endpoint (401) ---")
-    
-    # Test GET list without token
-    try:
-        response = requests.get(
-            f"{BASE_URL}/api/credit/financing-banks",
-            timeout=10
-        )
-        
-        if response.status_code == 401:
-            log_test("Scenario 8: Unauthenticated GET list returns 401", True, 
-                    "No token rejected")
-        else:
-            log_test("Scenario 8: Unauthenticated GET list returns 401", False, 
-                    f"Status: {response.status_code}, expected 401")
-    except Exception as e:
-        log_test("Scenario 8: Unauthenticated GET list", False, f"Exception: {e}")
-    
-    # Test POST create without token
-    try:
-        response = requests.post(
-            f"{BASE_URL}/api/credit/financing-banks",
-            json={"name": "Test Bank"},
-            timeout=10
-        )
-        
-        if response.status_code == 401:
-            log_test("Scenario 8: Unauthenticated POST create returns 401", True, 
-                    "No token rejected")
-        else:
-            log_test("Scenario 8: Unauthenticated POST create returns 401", False, 
-                    f"Status: {response.status_code}, expected 401")
-    except Exception as e:
-        log_test("Scenario 8: Unauthenticated POST create", False, f"Exception: {e}")
-    
-    # Test GET by id without token
-    if valid_bank_id:
-        try:
-            response = requests.get(
-                f"{BASE_URL}/api/credit/financing-banks/{valid_bank_id}",
-                timeout=10
-            )
-            
-            if response.status_code == 401:
-                log_test("Scenario 8: Unauthenticated GET by id returns 401", True, 
-                        "No token rejected")
-            else:
-                log_test("Scenario 8: Unauthenticated GET by id returns 401", False, 
-                        f"Status: {response.status_code}, expected 401")
-        except Exception as e:
-            log_test("Scenario 8: Unauthenticated GET by id", False, f"Exception: {e}")
-    
-    # Test PUT update without token
-    if valid_bank_id:
-        try:
-            response = requests.put(
-                f"{BASE_URL}/api/credit/financing-banks/{valid_bank_id}",
-                json={"name": "Test Bank Updated"},
-                timeout=10
-            )
-            
-            if response.status_code == 401:
-                log_test("Scenario 8: Unauthenticated PUT update returns 401", True, 
-                        "No token rejected")
-            else:
-                log_test("Scenario 8: Unauthenticated PUT update returns 401", False, 
-                        f"Status: {response.status_code}, expected 401")
-        except Exception as e:
-            log_test("Scenario 8: Unauthenticated PUT update", False, f"Exception: {e}")
-    
-    # Test DELETE without token
-    if valid_bank_id:
-        try:
-            response = requests.delete(
-                f"{BASE_URL}/api/credit/financing-banks/{valid_bank_id}",
-                timeout=10
-            )
-            
-            if response.status_code == 401:
-                log_test("Scenario 8: Unauthenticated DELETE returns 401", True, 
-                        "No token rejected")
-            else:
-                log_test("Scenario 8: Unauthenticated DELETE returns 401", False, 
-                        f"Status: {response.status_code}, expected 401")
-        except Exception as e:
-            log_test("Scenario 8: Unauthenticated DELETE", False, f"Exception: {e}")
-    
-    # ========================================================================
-    # Final check: Verify CSB Bank Limited still present
-    # ========================================================================
-    print("\n--- Final check: Verify CSB Bank Limited still present ---")
-    try:
-        response = requests.get(
-            f"{BASE_URL}/api/credit/financing-banks",
-            headers={"Authorization": f"Bearer {creditops_token}"},
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            banks = response.json()
-            csb_bank = next((b for b in banks if b.get("name") == "CSB Bank Limited"), None)
-            if csb_bank:
-                log_test("Final check: CSB Bank Limited still present", True, 
-                        "Default seeded bank intact")
-            else:
-                log_test("Final check: CSB Bank Limited still present", False, 
-                        "Default seeded bank missing")
-        else:
-            log_test("Final check: CSB Bank Limited check", False, 
-                    f"Status: {response.status_code}")
-    except Exception as e:
-        log_test("Final check: CSB Bank Limited check", False, f"Exception: {e}")
 
-def print_summary():
-    """Print test summary"""
-    print("\n" + "="*80)
-    print("TEST SUMMARY")
-    print("="*80)
-    print(f"✅ Passed: {test_results['passed']}")
-    print(f"❌ Failed: {test_results['failed']}")
-    print(f"📊 Total: {test_results['passed'] + test_results['failed']}")
+def test_1_dummy_banks_authenticated():
+    """Test 1: GET /api/credit/dummy-banks (any authenticated) returns hardcoded list of 10 banks"""
+    print("\n=== Test 1: GET /api/credit/dummy-banks (authenticated) ===")
     
-    if test_results['failed'] > 0:
-        print("\n❌ FAILED TESTS:")
-        for detail in test_results['details']:
-            if not detail['passed']:
-                print(f"  - {detail['name']}")
-                if detail['details']:
-                    print(f"    {detail['details']}")
+    url = f"{BASE_URL}/credit/dummy-banks"
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = requests.get(url, headers=headers)
     
-    print("="*80 + "\n")
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    
+    banks = response.json()
+    print(f"Banks returned: {len(banks)}")
+    assert len(banks) == 10, f"Expected 10 banks, got {len(banks)}"
+    
+    # Check expected bank IDs
+    expected_ids = ["hdfc", "icici", "axis", "sbi", "kotak", "csb", "idfc", "yes", "federal", "bajaj"]
+    actual_ids = [b["id"] for b in banks]
+    print(f"Bank IDs: {actual_ids}")
+    
+    for expected_id in expected_ids:
+        assert expected_id in actual_ids, f"Expected bank ID '{expected_id}' not found"
+    
+    # Check structure
+    for bank in banks:
+        assert "id" in bank, "Bank missing 'id' field"
+        assert "name" in bank, "Bank missing 'name' field"
+    
+    print("✅ Test 1 PASSED: dummy-banks returns 10 banks with correct IDs")
+    return True
+
+
+def test_2_create_fin_school_with_priority_sorting():
+    """Test 2: POST /api/credit/fin-schools creates school with banks sorted by priority"""
+    print("\n=== Test 2: POST /api/credit/fin-schools (priority sorting) ===")
+    
+    url = f"{BASE_URL}/credit/fin-schools"
+    headers = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
+    
+    payload = {
+        "name": "Sunrise Academy",
+        "financing_enabled": True,
+        "banks": [
+            {"bank_id": "hdfc", "interest_rate": 12.5, "priority": 2},
+            {"bank_id": "icici", "interest_rate": 11.9, "priority": 1}
+        ]
+    }
+    
+    response = requests.post(url, headers=headers, json=payload)
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+    
+    school = response.json()
+    print(f"Created school ID: {school.get('id')}")
+    created_school_ids.append(school.get('id'))
+    
+    # Verify structure
+    assert "id" in school, "School missing 'id'"
+    assert school["name"] == "Sunrise Academy", f"Name mismatch: {school['name']}"
+    assert school["financing_enabled"] == True, "financing_enabled should be True"
+    assert "banks" in school, "School missing 'banks'"
+    assert "created_at" in school, "School missing 'created_at'"
+    assert "updated_at" in school, "School missing 'updated_at'"
+    
+    # CRITICAL: Verify banks are sorted by priority (ascending)
+    banks = school["banks"]
+    print(f"Banks count: {len(banks)}")
+    assert len(banks) == 2, f"Expected 2 banks, got {len(banks)}"
+    
+    # First bank should be ICICI (priority 1, rate 11.9)
+    first_bank = banks[0]
+    print(f"First bank: {first_bank}")
+    assert first_bank["bank_id"] == "icici", f"First bank should be ICICI, got {first_bank['bank_id']}"
+    assert first_bank["priority"] == 1, f"First bank priority should be 1, got {first_bank['priority']}"
+    assert first_bank["interest_rate"] == 11.9, f"ICICI rate should be 11.9, got {first_bank['interest_rate']}"
+    assert first_bank["bank_name"] == "ICICI Bank", f"Bank name should be auto-filled, got {first_bank.get('bank_name')}"
+    
+    # Second bank should be HDFC (priority 2, rate 12.5)
+    second_bank = banks[1]
+    print(f"Second bank: {second_bank}")
+    assert second_bank["bank_id"] == "hdfc", f"Second bank should be HDFC, got {second_bank['bank_id']}"
+    assert second_bank["priority"] == 2, f"Second bank priority should be 2, got {second_bank['priority']}"
+    assert second_bank["interest_rate"] == 12.5, f"HDFC rate should be 12.5, got {second_bank['interest_rate']}"
+    assert second_bank["bank_name"] == "HDFC Bank", f"Bank name should be auto-filled, got {second_bank.get('bank_name')}"
+    
+    print("✅ Test 2 PASSED: School created with banks sorted by priority (ICICI first, HDFC second)")
+    return school["id"]
+
+
+def test_3_list_fin_schools():
+    """Test 3: GET /api/credit/fin-schools (admin) lists all schools"""
+    print("\n=== Test 3: GET /api/credit/fin-schools (list) ===")
+    
+    url = f"{BASE_URL}/credit/fin-schools"
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = requests.get(url, headers=headers)
+    
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    
+    schools = response.json()
+    print(f"Schools returned: {len(schools)}")
+    assert len(schools) >= 1, "Should have at least 1 school (created in test 2)"
+    
+    # Find our created school
+    created_school = None
+    for school in schools:
+        if school.get("name") == "Sunrise Academy":
+            created_school = school
+            break
+    
+    assert created_school is not None, "Created school 'Sunrise Academy' not found in list"
+    print(f"Found created school: {created_school['id']}")
+    
+    # Verify banks are normalized and sorted
+    banks = created_school.get("banks", [])
+    assert len(banks) == 2, f"Expected 2 banks, got {len(banks)}"
+    assert banks[0]["bank_id"] == "icici", "First bank should be ICICI (priority 1)"
+    assert banks[1]["bank_id"] == "hdfc", "Second bank should be HDFC (priority 2)"
+    
+    print("✅ Test 3 PASSED: List returns created school with normalized banks")
+    return True
+
+
+def test_4_get_fin_school_by_id_authenticated():
+    """Test 4: GET /api/credit/fin-schools/{id} (any authenticated) returns school details"""
+    print("\n=== Test 4: GET /api/credit/fin-schools/{id} (authenticated) ===")
+    
+    school_id = created_school_ids[0]
+    url = f"{BASE_URL}/credit/fin-schools/{school_id}"
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = requests.get(url, headers=headers)
+    
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    
+    school = response.json()
+    print(f"School ID: {school.get('id')}")
+    assert school["id"] == school_id, "School ID mismatch"
+    assert school["name"] == "Sunrise Academy", "School name mismatch"
+    assert school["financing_enabled"] == True, "financing_enabled should be True"
+    
+    # Verify banks with independent rates and priority order
+    banks = school["banks"]
+    assert len(banks) == 2, f"Expected 2 banks, got {len(banks)}"
+    assert banks[0]["bank_id"] == "icici", "First bank should be ICICI"
+    assert banks[0]["interest_rate"] == 11.9, "ICICI rate should be 11.9"
+    assert banks[0]["priority"] == 1, "ICICI priority should be 1"
+    assert banks[1]["bank_id"] == "hdfc", "Second bank should be HDFC"
+    assert banks[1]["interest_rate"] == 12.5, "HDFC rate should be 12.5"
+    assert banks[1]["priority"] == 2, "HDFC priority should be 2"
+    
+    print("✅ Test 4 PASSED: GET by ID returns school with correct banks and rates")
+    return True
+
+
+def test_5_get_fin_school_by_id_not_found():
+    """Test 5: GET /api/credit/fin-schools/{unknown_id} returns 404"""
+    print("\n=== Test 5: GET /api/credit/fin-schools/{unknown_id} (404) ===")
+    
+    bogus_id = "00000000-0000-0000-0000-000000000000"
+    url = f"{BASE_URL}/credit/fin-schools/{bogus_id}"
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = requests.get(url, headers=headers)
+    
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 404, f"Expected 404, got {response.status_code}"
+    
+    print("✅ Test 5 PASSED: GET unknown ID returns 404")
+    return True
+
+
+def test_6_update_fin_school():
+    """Test 6: PUT /api/credit/fin-schools/{id} updates school with new banks and rates"""
+    print("\n=== Test 6: PUT /api/credit/fin-schools/{id} (update) ===")
+    
+    school_id = created_school_ids[0]
+    url = f"{BASE_URL}/credit/fin-schools/{school_id}"
+    headers = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
+    
+    payload = {
+        "name": "Sunrise Academy",
+        "financing_enabled": False,
+        "banks": [
+            {"bank_id": "axis", "interest_rate": 13.0, "priority": 1},
+            {"bank_id": "hdfc", "interest_rate": 12.5, "priority": 2},
+            {"bank_id": "icici", "interest_rate": 10.5, "priority": 3}
+        ]
+    }
+    
+    response = requests.put(url, headers=headers, json=payload)
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+    
+    school = response.json()
+    print(f"Updated school ID: {school.get('id')}")
+    
+    # Verify financing_enabled is now False
+    assert school["financing_enabled"] == False, "financing_enabled should be False after update"
+    
+    # Verify banks are sorted by priority (axis first, hdfc second, icici third)
+    banks = school["banks"]
+    print(f"Banks count: {len(banks)}")
+    assert len(banks) == 3, f"Expected 3 banks, got {len(banks)}"
+    
+    assert banks[0]["bank_id"] == "axis", f"First bank should be Axis, got {banks[0]['bank_id']}"
+    assert banks[0]["interest_rate"] == 13.0, f"Axis rate should be 13.0, got {banks[0]['interest_rate']}"
+    assert banks[0]["priority"] == 1, f"Axis priority should be 1, got {banks[0]['priority']}"
+    
+    assert banks[1]["bank_id"] == "hdfc", f"Second bank should be HDFC, got {banks[1]['bank_id']}"
+    assert banks[1]["interest_rate"] == 12.5, f"HDFC rate should be 12.5, got {banks[1]['interest_rate']}"
+    assert banks[1]["priority"] == 2, f"HDFC priority should be 2, got {banks[1]['priority']}"
+    
+    assert banks[2]["bank_id"] == "icici", f"Third bank should be ICICI, got {banks[2]['bank_id']}"
+    assert banks[2]["interest_rate"] == 10.5, f"ICICI rate should be 10.5, got {banks[2]['interest_rate']}"
+    assert banks[2]["priority"] == 3, f"ICICI priority should be 3, got {banks[2]['priority']}"
+    
+    # Verify updated_at changed
+    assert "updated_at" in school, "School missing 'updated_at'"
+    
+    print("✅ Test 6 PASSED: School updated with new banks, rates, and financing_enabled=False")
+    return True
+
+
+def test_7_update_fin_school_not_found():
+    """Test 7: PUT /api/credit/fin-schools/{unknown_id} returns 404"""
+    print("\n=== Test 7: PUT /api/credit/fin-schools/{unknown_id} (404) ===")
+    
+    bogus_id = "00000000-0000-0000-0000-000000000000"
+    url = f"{BASE_URL}/credit/fin-schools/{bogus_id}"
+    headers = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
+    
+    payload = {
+        "name": "Test School",
+        "financing_enabled": True,
+        "banks": []
+    }
+    
+    response = requests.put(url, headers=headers, json=payload)
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 404, f"Expected 404, got {response.status_code}"
+    
+    print("✅ Test 7 PASSED: PUT unknown ID returns 404")
+    return True
+
+
+def test_8_validation_empty_name():
+    """Test 8: POST with empty name returns 400"""
+    print("\n=== Test 8: POST /api/credit/fin-schools (empty name validation) ===")
+    
+    url = f"{BASE_URL}/credit/fin-schools"
+    headers = {"Authorization": f"Bearer {admin_token}", "Content-Type": "application/json"}
+    
+    payload = {
+        "name": "",
+        "financing_enabled": True,
+        "banks": []
+    }
+    
+    response = requests.post(url, headers=headers, json=payload)
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 400, f"Expected 400, got {response.status_code}"
+    
+    print("✅ Test 8 PASSED: Empty name returns 400")
+    return True
+
+
+def test_9_authorization_parent_list_403():
+    """Test 9: Parent (non-admin) GET /api/credit/fin-schools returns 403"""
+    print("\n=== Test 9: Parent GET /api/credit/fin-schools (403) ===")
+    
+    url = f"{BASE_URL}/credit/fin-schools"
+    headers = {"Authorization": f"Bearer {parent_token}"}
+    response = requests.get(url, headers=headers)
+    
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 403, f"Expected 403, got {response.status_code}"
+    
+    print("✅ Test 9 PASSED: Parent GET list returns 403")
+    return True
+
+
+def test_10_authorization_parent_create_403():
+    """Test 10: Parent (non-admin) POST /api/credit/fin-schools returns 403"""
+    print("\n=== Test 10: Parent POST /api/credit/fin-schools (403) ===")
+    
+    url = f"{BASE_URL}/credit/fin-schools"
+    headers = {"Authorization": f"Bearer {parent_token}", "Content-Type": "application/json"}
+    
+    payload = {
+        "name": "Test School",
+        "financing_enabled": True,
+        "banks": []
+    }
+    
+    response = requests.post(url, headers=headers, json=payload)
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 403, f"Expected 403, got {response.status_code}"
+    
+    print("✅ Test 10 PASSED: Parent POST returns 403")
+    return True
+
+
+def test_11_authorization_parent_update_403():
+    """Test 11: Parent (non-admin) PUT /api/credit/fin-schools/{id} returns 403"""
+    print("\n=== Test 11: Parent PUT /api/credit/fin-schools/{id} (403) ===")
+    
+    school_id = created_school_ids[0]
+    url = f"{BASE_URL}/credit/fin-schools/{school_id}"
+    headers = {"Authorization": f"Bearer {parent_token}", "Content-Type": "application/json"}
+    
+    payload = {
+        "name": "Test School",
+        "financing_enabled": True,
+        "banks": []
+    }
+    
+    response = requests.put(url, headers=headers, json=payload)
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 403, f"Expected 403, got {response.status_code}"
+    
+    print("✅ Test 11 PASSED: Parent PUT returns 403")
+    return True
+
+
+def test_12_authorization_parent_delete_403():
+    """Test 12: Parent (non-admin) DELETE /api/credit/fin-schools/{id} returns 403"""
+    print("\n=== Test 12: Parent DELETE /api/credit/fin-schools/{id} (403) ===")
+    
+    school_id = created_school_ids[0]
+    url = f"{BASE_URL}/credit/fin-schools/{school_id}"
+    headers = {"Authorization": f"Bearer {parent_token}"}
+    response = requests.delete(url, headers=headers)
+    
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 403, f"Expected 403, got {response.status_code}"
+    
+    print("✅ Test 12 PASSED: Parent DELETE returns 403")
+    return True
+
+
+def test_13_authorization_parent_get_by_id_200():
+    """Test 13: Parent (non-admin) CAN call GET /api/credit/fin-schools/{id} (200)"""
+    print("\n=== Test 13: Parent GET /api/credit/fin-schools/{id} (200) ===")
+    
+    school_id = created_school_ids[0]
+    url = f"{BASE_URL}/credit/fin-schools/{school_id}"
+    headers = {"Authorization": f"Bearer {parent_token}"}
+    response = requests.get(url, headers=headers)
+    
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    
+    school = response.json()
+    print(f"School ID: {school.get('id')}")
+    assert school["id"] == school_id, "School ID mismatch"
+    
+    print("✅ Test 13 PASSED: Parent CAN call GET by ID (200)")
+    return True
+
+
+def test_14_authorization_parent_dummy_banks_200():
+    """Test 14: Parent (non-admin) CAN call GET /api/credit/dummy-banks (200)"""
+    print("\n=== Test 14: Parent GET /api/credit/dummy-banks (200) ===")
+    
+    url = f"{BASE_URL}/credit/dummy-banks"
+    headers = {"Authorization": f"Bearer {parent_token}"}
+    response = requests.get(url, headers=headers)
+    
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    
+    banks = response.json()
+    print(f"Banks returned: {len(banks)}")
+    assert len(banks) == 10, f"Expected 10 banks, got {len(banks)}"
+    
+    print("✅ Test 14 PASSED: Parent CAN call GET dummy-banks (200)")
+    return True
+
+
+def test_15_no_auth_401():
+    """Test 15: No auth header returns 401 on protected endpoints"""
+    print("\n=== Test 15: No auth header (401) ===")
+    
+    # Test dummy-banks
+    url = f"{BASE_URL}/credit/dummy-banks"
+    response = requests.get(url)
+    print(f"dummy-banks status: {response.status_code}")
+    assert response.status_code in [401, 403], f"Expected 401/403, got {response.status_code}"
+    
+    # Test fin-schools list
+    url = f"{BASE_URL}/credit/fin-schools"
+    response = requests.get(url)
+    print(f"fin-schools list status: {response.status_code}")
+    assert response.status_code in [401, 403], f"Expected 401/403, got {response.status_code}"
+    
+    print("✅ Test 15 PASSED: No auth returns 401/403")
+    return True
+
+
+def test_16_delete_fin_school():
+    """Test 16: DELETE /api/credit/fin-schools/{id} removes school"""
+    print("\n=== Test 16: DELETE /api/credit/fin-schools/{id} ===")
+    
+    school_id = created_school_ids[0]
+    url = f"{BASE_URL}/credit/fin-schools/{school_id}"
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = requests.delete(url, headers=headers)
+    
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    
+    result = response.json()
+    assert result.get("ok") == True, "Expected {ok: true}"
+    
+    # Verify subsequent GET returns 404
+    response = requests.get(url, headers=headers)
+    print(f"GET after DELETE status: {response.status_code}")
+    assert response.status_code == 404, f"Expected 404 after delete, got {response.status_code}"
+    
+    print("✅ Test 16 PASSED: School deleted, subsequent GET returns 404")
+    return True
+
+
+def test_17_delete_fin_school_not_found():
+    """Test 17: DELETE /api/credit/fin-schools/{unknown_id} returns 404"""
+    print("\n=== Test 17: DELETE /api/credit/fin-schools/{unknown_id} (404) ===")
+    
+    bogus_id = "00000000-0000-0000-0000-000000000000"
+    url = f"{BASE_URL}/credit/fin-schools/{bogus_id}"
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = requests.delete(url, headers=headers)
+    
+    print(f"Status: {response.status_code}")
+    assert response.status_code == 404, f"Expected 404, got {response.status_code}"
+    
+    print("✅ Test 17 PASSED: DELETE unknown ID returns 404")
+    return True
+
+
+def cleanup():
+    """Clean up any remaining test schools"""
+    print("\n=== Cleanup: Deleting remaining test schools ===")
+    
+    for school_id in created_school_ids[1:]:  # Skip first one (already deleted in test 16)
+        url = f"{BASE_URL}/credit/fin-schools/{school_id}"
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        response = requests.delete(url, headers=headers)
+        print(f"Deleted school {school_id}: {response.status_code}")
+    
+    print("✅ Cleanup complete")
+
+
+def main():
+    global admin_token, parent_token
+    
+    print("=" * 80)
+    print("Backend API Testing: School↔Bank Financing Management")
+    print("=" * 80)
+    
+    # Login
+    print("\n--- Authentication ---")
+    admin_token = login(ADMIN_EMAIL, ADMIN_PASSWORD)
+    parent_token = login(PARENT_EMAIL, PARENT_PASSWORD)
+    
+    if not admin_token:
+        print("❌ FAILED: Admin login failed")
+        return
+    
+    if not parent_token:
+        print("❌ FAILED: Parent login failed")
+        return
+    
+    # Run tests
+    tests = [
+        test_1_dummy_banks_authenticated,
+        test_2_create_fin_school_with_priority_sorting,
+        test_3_list_fin_schools,
+        test_4_get_fin_school_by_id_authenticated,
+        test_5_get_fin_school_by_id_not_found,
+        test_6_update_fin_school,
+        test_7_update_fin_school_not_found,
+        test_8_validation_empty_name,
+        test_9_authorization_parent_list_403,
+        test_10_authorization_parent_create_403,
+        test_11_authorization_parent_update_403,
+        test_12_authorization_parent_delete_403,
+        test_13_authorization_parent_get_by_id_200,
+        test_14_authorization_parent_dummy_banks_200,
+        test_15_no_auth_401,
+        test_16_delete_fin_school,
+        test_17_delete_fin_school_not_found,
+    ]
+    
+    passed = 0
+    failed = 0
+    
+    for test in tests:
+        try:
+            test()
+            passed += 1
+        except AssertionError as e:
+            print(f"❌ FAILED: {e}")
+            failed += 1
+        except Exception as e:
+            print(f"❌ ERROR: {e}")
+            failed += 1
+    
+    # Cleanup
+    try:
+        cleanup()
+    except Exception as e:
+        print(f"⚠️  Cleanup error: {e}")
+    
+    # Summary
+    print("\n" + "=" * 80)
+    print(f"SUMMARY: {passed} passed, {failed} failed out of {passed + failed} tests")
+    print("=" * 80)
+    
+    if failed == 0:
+        print("✅ ALL TESTS PASSED")
+    else:
+        print(f"❌ {failed} TEST(S) FAILED")
+
 
 if __name__ == "__main__":
-    try:
-        test_financing_banks_crud()
-        print_summary()
-        
-        # Exit with appropriate code
-        sys.exit(0 if test_results['failed'] == 0 else 1)
-    except KeyboardInterrupt:
-        print("\n\n⚠️  Tests interrupted by user")
-        sys.exit(1)
-    except Exception as e:
-        print(f"\n\n❌ Fatal error: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    main()
