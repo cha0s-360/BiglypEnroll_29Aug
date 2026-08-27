@@ -207,6 +207,15 @@ type LayoutConfig<Route extends LayoutRoutes = LayoutRoutes> = {
   type __Unused = __Check
 }
 
+// Validate ../../src/app/dashboard/financing-banks/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/dashboard/financing-banks">> = Specific
+  const handler = {} as typeof import("../../src/app/dashboard/financing-banks/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/dashboard/onboarding/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/dashboard/onboarding">> = Specific

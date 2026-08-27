@@ -1,7 +1,7 @@
 {
   "version": 4,
   "routes": {
-    "/app/programs": {
+    "/app": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -14,8 +14,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/app/programs",
-      "dataRoute": "/app/programs.rsc",
+      "srcRoute": "/app",
+      "dataRoute": "/app.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -73,8 +73,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/_not-found": {
-      "initialStatus": 404,
+    "/app/programs": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -87,80 +86,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/_not-found",
-      "dataRoute": "/_not-found.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/app/psychometry/reports": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/app/psychometry/reports",
-      "dataRoute": "/app/psychometry/reports.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/app": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/app",
-      "dataRoute": "/app.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/biglypenroll": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/biglypenroll",
-      "dataRoute": "/biglypenroll.rsc",
+      "srcRoute": "/app/programs",
+      "dataRoute": "/app/programs.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -194,6 +121,30 @@
         "x-next-revalidate-tag-token"
       ]
     },
+    "/biglypenroll": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/biglypenroll",
+      "dataRoute": "/biglypenroll.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
     "/career-hub": {
       "experimentalBypassFor": [
         {
@@ -218,7 +169,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/credit/banks": {
+    "/app/psychometry/reports": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -231,8 +182,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/credit/banks",
-      "dataRoute": "/credit/banks.rsc",
+      "srcRoute": "/app/psychometry/reports",
+      "dataRoute": "/app/psychometry/reports.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -242,7 +193,8 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/credit/new": {
+    "/_not-found": {
+      "initialStatus": 404,
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -255,32 +207,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/credit/new",
-      "dataRoute": "/credit/new.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/app/financing": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/app/financing",
-      "dataRoute": "/app/financing.rsc",
+      "srcRoute": "/_not-found",
+      "dataRoute": "/_not-found.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -314,6 +242,54 @@
         "x-next-revalidate-tag-token"
       ]
     },
+    "/credit/new": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/credit/new",
+      "dataRoute": "/credit/new.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/credit/banks": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/credit/banks",
+      "dataRoute": "/credit/banks.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
     "/credit/policies": {
       "experimentalBypassFor": [
         {
@@ -329,78 +305,6 @@
       "initialRevalidateSeconds": false,
       "srcRoute": "/credit/policies",
       "dataRoute": "/credit/policies.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/dashboard/onboarding": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/dashboard/onboarding",
-      "dataRoute": "/dashboard/onboarding.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/app/discover": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/app/discover",
-      "dataRoute": "/app/discover.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/credit": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "next-action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/credit",
-      "dataRoute": "/credit.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -434,7 +338,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/dashboard": {
+    "/dashboard/onboarding": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -447,8 +351,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/dashboard",
-      "dataRoute": "/dashboard.rsc",
+      "srcRoute": "/dashboard/onboarding",
+      "dataRoute": "/dashboard/onboarding.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -458,7 +362,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/dashboard/students": {
+    "/credit": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -471,8 +375,32 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/dashboard/students",
-      "dataRoute": "/dashboard/students.rsc",
+      "srcRoute": "/credit",
+      "dataRoute": "/credit.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/dashboard/financing-banks": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/dashboard/financing-banks",
+      "dataRoute": "/dashboard/financing-banks.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -506,7 +434,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/dashboard/team": {
+    "/dashboard/students": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -519,8 +447,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/dashboard/team",
-      "dataRoute": "/dashboard/team.rsc",
+      "srcRoute": "/dashboard/students",
+      "dataRoute": "/dashboard/students.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -554,7 +482,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/app/mandate": {
+    "/dashboard": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -567,8 +495,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/app/mandate",
-      "dataRoute": "/app/mandate.rsc",
+      "srcRoute": "/dashboard",
+      "dataRoute": "/dashboard.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -578,7 +506,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/register": {
+    "/dashboard/team": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -591,8 +519,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/register",
-      "dataRoute": "/register.rsc",
+      "srcRoute": "/dashboard/team",
+      "dataRoute": "/dashboard/team.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -602,7 +530,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/": {
+    "/app/discover": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -615,8 +543,32 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/",
-      "dataRoute": "/index.rsc",
+      "srcRoute": "/app/discover",
+      "dataRoute": "/app/discover.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/app/history": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/app/history",
+      "dataRoute": "/app/history.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -650,7 +602,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/app/history": {
+    "/app/financing": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -663,8 +615,80 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/app/history",
-      "dataRoute": "/app/history.rsc",
+      "srcRoute": "/app/financing",
+      "dataRoute": "/app/financing.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/",
+      "dataRoute": "/index.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/register": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/register",
+      "dataRoute": "/register.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
+    "/app/mandate": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "next-action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/app/mandate",
+      "dataRoute": "/app/mandate.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -678,8 +702,8 @@
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "ba322b8014a9668d7ad3ad15df1e34f4",
-    "previewModeSigningKey": "47dbbe9f94caf8d60ccac8847a1ea877fdc13620fedc058bf7ccb127e5f84fd5",
-    "previewModeEncryptionKey": "6523be3d67416b278236486511b0b2c97b120eb82e493caaac5c975e03d9b97d"
+    "previewModeId": "d574901ac31f3b64ef71b0922ec26bd6",
+    "previewModeSigningKey": "f4c695f8df3793019717202e3eff7e70453dc3f4813417fc9a9ac04395a5d57c",
+    "previewModeEncryptionKey": "4629d0a2c4f1d09edd6cd7b088db69058466376bbc9aec205dd62bd4b1d73da6"
   }
 }

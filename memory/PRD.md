@@ -119,3 +119,7 @@ Per user-attached PDFs (Psychometry flow + ExploreX detailed report):
   - One default bank seeded: "CSB Bank Limited". Backend tested 24/24 pass.
 - Frontend: new `/credit/banks` screen (`src/screens/credit/FinancingBanks.tsx`, route `src/app/credit/banks/page.tsx`), nav item "Financing Banks" added to CreditLayout (admin-only). List view + Add/Edit dialog, all fields editable post-creation, delete supported. No approval workflow. Verified via screenshots.
 - Phase 1 done. Later phases (Screen 1 amount/advance-EMI, Screen 2 income-proof + NACH, Screen 3 KYC priority/name-match/decline states) will consume GET-by-ID config.
+
+## Update (2025-07) — Financing Banks placement fix
+- Ops admin (super_admin / credit_ops) lands on the Institute Console (/dashboard), so the Financing Banks manager is now surfaced there directly: new nav item "Financing Banks" (role-gated to super_admin/credit_ops) below "Fee Financing", route /dashboard/financing-banks.
+- FinancingBanks.tsx refactored to be layout-agnostic; rendered in DashboardLayout (Institute Console) and still available in CreditLayout at /credit/banks. Both use POLICY_ROLES guard.

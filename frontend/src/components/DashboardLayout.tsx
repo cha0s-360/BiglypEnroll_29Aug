@@ -7,7 +7,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from "@/context/AuthContext";
 import { Logo } from "@/components/Logo";
 import {
-  LayoutDashboard, Wallet, GraduationCap, Users, Settings, LogOut, School, UserCog, Landmark, Bell,
+  LayoutDashboard, Wallet, GraduationCap, Users, Settings, LogOut, School, UserCog, Landmark, Bell, Building2,
 } from "lucide-react";
 
 const ADMIN_NAV = [
@@ -25,6 +25,16 @@ export function DashboardLayout({ children, title }) {
   const pathname = usePathname();
   const router = useRouter();
 
+  // Biglyp Ops / Credit Ops manage the financing-bank config right here in the console.
+  const isOps = ["super_admin", "credit_ops"].includes(user?.role);
+  const nav = isOps
+    ? [
+        ...ADMIN_NAV.slice(0, 6),
+        { to: "/dashboard/financing-banks", label: "Financing Banks", icon: Building2, testid: "nav-financing-banks" },
+        ...ADMIN_NAV.slice(6),
+      ]
+    : ADMIN_NAV;
+
   return (
     <Box className="min-h-screen flex bg-slate-50">
       {/* Sidebar */}
@@ -41,7 +51,7 @@ export function DashboardLayout({ children, title }) {
           </Box>
         </Box>
         <Box component="nav" className="flex-1 p-3 space-y-1">
-          {ADMIN_NAV.map((item) => {
+          {nav.map((item) => {
             const active = pathname === item.to;
             const Icon = item.icon;
             return (

@@ -156,6 +156,12 @@
       "namedRegex": "^/dashboard/fees(?:/)?$"
     },
     {
+      "page": "/dashboard/financing-banks",
+      "regex": "^/dashboard/financing\\-banks(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/dashboard/financing\\-banks(?:/)?$"
+    },
+    {
       "page": "/dashboard/onboarding",
       "regex": "^/dashboard/onboarding(?:/)?$",
       "routeKeys": {},

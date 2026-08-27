@@ -3,7 +3,6 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useEffect, useState } from "react";
-import { CreditLayout } from "@/components/CreditLayout";
 import api, { inr } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -143,7 +142,10 @@ export default function FinancingBanks() {
   };
 
   return (
-    <CreditLayout title="Financing Banks" subtitle="Configure banks that fund the 0% EMI financing flow — all fields editable anytime">
+    <Box>
+      <Typography variant="inherit" component="p" className="text-sm text-muted-foreground mb-4">
+        Configure banks that fund the 0% EMI financing flow — all fields editable anytime.
+      </Typography>
       <Box className="flex justify-end mb-4">
         <Button onClick={openNew} data-testid="add-bank-btn" className="rounded-sm bg-brand-blue hover:bg-brand-navy">
           <Plus className="h-4 w-4 mr-2" /> Add Bank
@@ -277,6 +279,6 @@ export default function FinancingBanks() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </CreditLayout>
+    </Box>
   );
 }
