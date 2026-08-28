@@ -79,6 +79,9 @@ export function KycVerification({
   const [compliance, setCompliance] = useState("idle"); // idle|running|pass
   const doneRef = useRef(false);
   const complianceStartedRef = useRef(false);
+  const complianceTimerRef = useRef(null);
+  // Clear the pending completion timer ONLY on unmount (never on effect re-run).
+  useEffect(() => () => { if (complianceTimerRef.current) clearTimeout(complianceTimerRef.current); }, []);
 
   // Video KYC
   const [videoStage, setVideoStage] = useState("idle"); // idle|connecting|verifying|done
@@ -172,18 +175,18 @@ export function KycVerification({
   // ---- Liveness handled by the <LivenessCheck> component (camera motion check) ----
 
   // ---- Auto compliance + completion once all E-KYC parts pass ----
-  // NOTE: `compliance` must NOT be in the dependency array — including it caused
-  // the effect to re-run the instant we set it to "running", whose cleanup then
-  // cleared the pending timeout so finish() never fired (KYC stuck on "Running
-  // final checks…"). A ref guard ensures this starts exactly once.
+  // The completion timer is stored in a ref and is NEVER cleared by an effect
+  // re-run (only on unmount). Previously the effect returned a cleanup that
+  // cancelled the timeout as soon as `compliance` flipped to "running" (or on
+  // any dep re-run / StrictMode), so finish() never fired and KYC hung on
+  // "Running final checks…". A one-shot ref guard starts it exactly once.
   useEffect(() => {
     if (stage !== "ekyc") return;
     if (complianceStartedRef.current) return;
     if (aadhaarVerified && locationOk && liveness === "done") {
       complianceStartedRef.current = true;
       setCompliance("running");
-      const t = setTimeout(() => { setCompliance("pass"); finish(); }, 1400);
-      return () => clearTimeout(t);
+      complianceTimerRef.current = setTimeout(() => { setCompliance("pass"); finish(); }, 1200);
     }
   }, [stage, aadhaarVerified, locationOk, liveness]);
 
