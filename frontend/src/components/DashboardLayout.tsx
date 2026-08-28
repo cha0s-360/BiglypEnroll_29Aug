@@ -7,7 +7,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from "@/context/AuthContext";
 import { Logo } from "@/components/Logo";
 import {
-  LayoutDashboard, Wallet, GraduationCap, Users, Settings, LogOut, School, UserCog, Landmark, Bell, Building2,
+  LayoutDashboard, Wallet, GraduationCap, Users, Settings, LogOut, School, UserCog, Landmark, Bell, Building2, AlertTriangle,
 } from "lucide-react";
 
 const ADMIN_NAV = [
@@ -32,6 +32,7 @@ export function DashboardLayout({ children, title }) {
         ...ADMIN_NAV.slice(0, 6),
         { to: "/dashboard/financing-banks", label: "Financing Banks", icon: Building2, testid: "nav-financing-banks" },
         { to: "/dashboard/schools", label: "Schools", icon: GraduationCap, testid: "nav-schools" },
+        { to: "/dashboard/failures", label: "Failures", icon: AlertTriangle, testid: "nav-failures" },
         ...ADMIN_NAV.slice(6),
       ]
     : ADMIN_NAV;

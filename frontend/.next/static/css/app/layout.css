@@ -57,7 +57,10 @@
     --color-violet-100: oklch(94.3% 0.029 294.588);
     --color-violet-700: oklch(49.1% 0.27 292.581);
     --color-pink-300: oklch(82.3% 0.12 346.018);
+    --color-rose-50: oklch(96.9% 0.015 12.422);
+    --color-rose-200: oklch(89.2% 0.058 10.001);
     --color-rose-400: oklch(71.2% 0.194 13.428);
+    --color-rose-600: oklch(58.6% 0.253 17.585);
     --color-slate-50: oklch(98.4% 0.003 247.858);
     --color-slate-100: oklch(96.8% 0.007 247.896);
     --color-slate-200: oklch(92.9% 0.013 255.508);
@@ -1300,6 +1303,10 @@
     --tw-translate-x: -50%;
     translate: var(--tw-translate-x) var(--tw-translate-y);
   }
+  .-translate-y-0\.5 {
+    --tw-translate-y: calc(var(--spacing) * -0.5);
+    translate: var(--tw-translate-x) var(--tw-translate-y);
+  }
   .-translate-y-1\/2 {
     --tw-translate-y: calc(calc(1 / 2 * 100%) * -1);
     translate: var(--tw-translate-x) var(--tw-translate-y);
@@ -1404,6 +1411,9 @@
   }
   .grid-cols-15 {
     grid-template-columns: repeat(15, minmax(0, 1fr));
+  }
+  .grid-cols-\[1\.4fr_1\.4fr_1\.1fr_1\.5fr_auto\] {
+    grid-template-columns: 1.4fr 1.4fr 1.1fr 1.5fr auto;
   }
   .grid-rows-4 {
     grid-template-rows: repeat(4, minmax(0, 1fr));
@@ -2116,6 +2126,9 @@
   .bg-green-600 {
     background-color: var(--color-green-600);
   }
+  .bg-indigo-50 {
+    background-color: var(--color-indigo-50);
+  }
   .bg-indigo-50\/40 {
     background-color: color-mix(in srgb, oklch(96.2% 0.018 272.314) 40%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
@@ -2184,6 +2197,9 @@
   }
   .bg-red-600 {
     background-color: var(--color-red-600);
+  }
+  .bg-rose-50 {
+    background-color: var(--color-rose-50);
   }
   .bg-rose-400 {
     background-color: var(--color-rose-400);
@@ -3007,6 +3023,9 @@
   .text-indigo-200 {
     color: var(--color-indigo-200);
   }
+  .text-indigo-600 {
+    color: var(--color-indigo-600);
+  }
   .text-indigo-700 {
     color: var(--color-indigo-700);
   }
@@ -3039,6 +3058,9 @@
   }
   .text-red-700 {
     color: var(--color-red-700);
+  }
+  .text-rose-600 {
+    color: var(--color-rose-600);
   }
   .text-secondary-foreground {
     color: var(--color-secondary-foreground);
@@ -3355,6 +3377,9 @@
   .ring-\[\#EEF0FF\] {
     --tw-ring-color: #EEF0FF;
   }
+  .ring-amber-200 {
+    --tw-ring-color: var(--color-amber-200);
+  }
   .ring-emerald-100 {
     --tw-ring-color: var(--color-emerald-100);
   }
@@ -3364,8 +3389,14 @@
       --tw-ring-color: color-mix(in oklab, var(--color-indigo-100) 70%, transparent);
     }
   }
+  .ring-indigo-200 {
+    --tw-ring-color: var(--color-indigo-200);
+  }
   .ring-ring {
     --tw-ring-color: var(--color-ring);
+  }
+  .ring-rose-200 {
+    --tw-ring-color: var(--color-rose-200);
   }
   .ring-slate-100 {
     --tw-ring-color: var(--color-slate-100);
@@ -3683,6 +3714,14 @@
     .hover\:bg-brand-navy:hover {
       background-color: var(--color-brand-navy);
     }
+    .hover\:bg-brand-navy\/90:hover {
+      background-color: color-mix(in srgb, #0F1A5B 90%, transparent);
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .hover\:bg-brand-navy\/90:hover {
+        background-color: color-mix(in oklab, var(--color-brand-navy) 90%, transparent);
+      }
+    }
     .hover\:bg-brand-tint:hover {
       background-color: var(--color-brand-tint);
     }
@@ -3805,6 +3844,14 @@
     @supports (color: color-mix(in lab, red, red)) {
       .hover\:bg-slate-50\/60:hover {
         background-color: color-mix(in oklab, var(--color-slate-50) 60%, transparent);
+      }
+    }
+    .hover\:bg-slate-50\/70:hover {
+      background-color: color-mix(in srgb, oklch(98.4% 0.003 247.858) 70%, transparent);
+    }
+    @supports (color: color-mix(in lab, red, red)) {
+      .hover\:bg-slate-50\/70:hover {
+        background-color: color-mix(in oklab, var(--color-slate-50) 70%, transparent);
       }
     }
     .hover\:bg-slate-100:hover {
@@ -4236,6 +4283,9 @@
     .sm\:w-auto {
       width: auto;
     }
+    .sm\:max-w-lg {
+      max-width: var(--container-lg);
+    }
     .sm\:max-w-sm {
       max-width: var(--container-sm);
     }
@@ -4348,6 +4398,9 @@
     .md\:flex {
       display: flex;
     }
+    .md\:grid {
+      display: grid;
+    }
     .md\:hidden {
       display: none;
     }
@@ -4404,6 +4457,9 @@
     }
     .md\:grid-cols-12 {
       grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+    .md\:grid-cols-\[1\.4fr_1\.4fr_1\.1fr_1\.5fr_auto\] {
+      grid-template-columns: 1.4fr 1.4fr 1.1fr 1.5fr auto;
     }
     .md\:grid-cols-\[1\.4fr_1fr\] {
       grid-template-columns: 1.4fr 1fr;
