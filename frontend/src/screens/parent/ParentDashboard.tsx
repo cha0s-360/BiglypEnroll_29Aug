@@ -3,7 +3,7 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ParentLayout } from "@/components/ParentLayout";
 import api, { inr } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ const addonMeta = (name = "") => {
 
 export default function ParentDashboard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [children, setChildren] = useState([]);
   const [activeChild, setActiveChild] = useState(null);
   const [feeData, setFeeData] = useState(null);
@@ -77,6 +78,17 @@ export default function ParentDashboard() {
     setClubbed([]);
     api.get(`/parent/fees/${activeChild}`).then(({ data }) => setFeeData(data));
   }, [activeChild]);
+
+  // Demo hook: simulate "returning here after an ineligibility pop-up" via a
+  // dummy query flag (?emi=ineligible). This mirrors the real ineligibility
+  // trigger fired from the Eligibility/KYC steps (onFinancingIneligible below).
+  useEffect(() => {
+    if (!activeChild) return;
+    const flag = (searchParams?.get("emi") || "").toLowerCase();
+    if (flag === "ineligible" || flag === "noteligible") {
+      setEmiIneligibleFor((m) => ({ ...m, [activeChild]: true }));
+    }
+  }, [activeChild, searchParams]);
 
   const child = children.find((c) => c.id === activeChild);
   const items = feeData?.items || [];
@@ -142,16 +154,25 @@ export default function ParentDashboard() {
     },
   ]), [emiAmount, autoAmount, autoFreq, academicTotal]);
 
-  const enabledOptions = optionDefs.filter((o) => paymentOptions[o.flag]);
+  // Home Screen always presents all 3 fee-payment options up front.
+  const enabledOptions = optionDefs;
 
-  // default the selected option to the first enabled one when fees load
+  // default the selected option to the first eligible one when fees load
   useEffect(() => {
     if (!feeData) return;
-    const po = feeData.payment_options || { emi: true, auto_debit: true, full: true };
-    const order = [["a", "emi"], ["b", "auto_debit"], ["c", "full"]];
-    const firstEnabled = order.find(([k, f]) => po[f] && !(k === "a" && emiIneligibleFor[activeChild]));
-    setSelectedOption(firstEnabled ? firstEnabled[0] : null);
+    const order = ["a", "b", "c"];
+    const first = order.find((k) => !(k === "a" && emiIneligibleFor[activeChild]));
+    setSelectedOption(first || null);
   }, [feeData]);
+
+  // If EMI becomes ineligible while it is selected, move the selection off EMI
+  // (keeps the flow non-blocking — never a dead-end).
+  useEffect(() => {
+    if (emiIneligible && selectedOption === "a") {
+      const alt = enabledOptions.find((o) => o.key !== "a");
+      setSelectedOption(alt ? alt.key : null);
+    }
+  }, [emiIneligible, selectedOption]);
 
   const dueDate = useMemo(() => {
     const yr = (feeData?.academic_year || "2026-27").slice(0, 4);
@@ -324,7 +345,7 @@ export default function ParentDashboard() {
                 onClick={() => { if (disabled) return; setSelectedOption(o.key); }}
                 className={`card-lift reveal-${idx + 1} relative text-left rounded-2xl border-2 p-5 ${
                   disabled
-                    ? "border-transparent bg-slate-50 opacity-60 cursor-not-allowed grayscale"
+                    ? "border-red-200 bg-slate-50 cursor-not-allowed"
                     : active
                     ? "border-[#5548D1] bg-gradient-to-br from-[#EEF0FF] to-white soft-shadow-lg"
                     : "border-transparent bg-white soft-shadow hover:border-[#5548D1]/30"
@@ -344,13 +365,13 @@ export default function ParentDashboard() {
                     {displayLetter}
                   </Box>
                   <Box component="span" className={`rounded-full text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 leading-tight ${
-                    disabled ? "bg-slate-200 text-slate-500" : badgeTone
+                    disabled ? "bg-red-100 text-red-600" : badgeTone
                   }`}>
-                    {disabled ? "Not available" : o.badge.text}
+                    {disabled ? "Not Eligible" : o.badge.text}
                   </Box>
                 </Box>
 
-                <Typography variant="inherit" component="p" className="font-head text-[19px] font-black tracking-tight leading-snug text-brand-navy mt-3">
+                <Typography variant="inherit" component="p" className={`font-head text-[19px] font-black tracking-tight leading-snug mt-3 ${disabled ? "text-slate-400" : "text-brand-navy"}`}>
                   {o.title}
                 </Typography>
                 <Typography variant="inherit" component="p" className="text-[12.5px] text-slate-500 mt-1">
@@ -358,11 +379,19 @@ export default function ParentDashboard() {
                 </Typography>
 
                 <Box className="mt-4 flex items-baseline gap-1.5">
-                  <Box component="span" className={`font-head text-3xl font-black tracking-tight ${!disabled && (o.primary || active) ? "text-[#5548D1]" : "text-brand-navy"}`}>
+                  <Box component="span" className={`font-head text-3xl font-black tracking-tight ${disabled ? "text-slate-300" : (o.primary || active) ? "text-[#5548D1]" : "text-brand-navy"}`}>
                     {inr(o.amount)}
                   </Box>
                   <Box component="span" className="text-xs font-semibold text-slate-400">{o.unit}</Box>
                 </Box>
+
+                {/* Ineligible EMI: red "Not Eligible" button replaces the normal CTA cue */}
+                {disabled && (
+                  <Box component="span" data-testid="emi-not-eligible-btn"
+                    className="mt-4 inline-flex items-center justify-center w-full rounded-xl bg-red-600 text-white text-sm font-bold uppercase tracking-wide px-4 py-2.5 cursor-not-allowed select-none">
+                    Not Eligible
+                  </Box>
+                )}
               </Box>
             );
           })}
