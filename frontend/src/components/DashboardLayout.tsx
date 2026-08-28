@@ -3,11 +3,12 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from "@/context/AuthContext";
 import { Logo } from "@/components/Logo";
 import {
-  LayoutDashboard, Wallet, GraduationCap, Users, Settings, LogOut, School, UserCog, Landmark, Bell, Building2, AlertTriangle, MailWarning,
+  LayoutDashboard, Wallet, GraduationCap, Users, Settings, LogOut, School, UserCog, Landmark, Bell, Building2, AlertTriangle, MailWarning, Loader2,
 } from "lucide-react";
 
 const ADMIN_NAV = [
@@ -24,6 +25,9 @@ export function DashboardLayout({ children, title }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+  // Immediate click feedback while Next.js compiles/loads the target route
+  const [pending, setPending] = useState(null);
+  useEffect(() => { setPending(null); }, [pathname]);
 
   // Biglyp Ops / Credit Ops manage the financing-bank config right here in the console.
   const isOps = ["super_admin", "credit_ops"].includes(user?.role);
@@ -57,18 +61,20 @@ export function DashboardLayout({ children, title }) {
           {nav.map((item) => {
             const active = pathname === item.to;
             const Icon = item.icon;
+            const isPending = pending === item.to;
             return (
               <Link
                 key={item.to}
                 href={item.to}
                 data-testid={item.testid}
+                onClick={() => { if (item.to !== pathname) setPending(item.to); }}
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-full text-[13px] font-semibold transition-colors ${
                   active
                     ? "bg-brand-blue text-white shadow-md shadow-black/20"
                     : "text-white/70 hover:bg-white/10 hover:text-white"
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
                 {item.label}
               </Link>
             );

@@ -12,10 +12,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   Bell, Mail, MessageSquare, Save, Loader2, Play, Clock, Info,
-  Code2, CheckCircle2, Ban, ChevronRight,
+  Code2, CheckCircle2, Ban, ChevronRight, Eye,
 } from "lucide-react";
 
 const VARIABLES = ["parent_name", "student_name", "emi_amount", "due_date", "school_name"];
+
+// Sample data used only for the live email preview on this screen.
+const SAMPLE_DATA: Record<string, string> = {
+  parent_name: "Rajesh Malhotra",
+  student_name: "Aarav Malhotra",
+  emi_amount: "₹8,500",
+  due_date: "10 Sep 2026",
+  school_name: "Horizon International School",
+  parent_email: "rajesh.m@example.com",
+};
+
+// Mirror of the backend substitution: {{var}} -> sample value (missing -> blank).
+const renderSample = (tpl: string) =>
+  (tpl || "").replace(/{{\s*(\w+)\s*}}/g, (_m, k) => SAMPLE_DATA[k] ?? "");
 
 export default function Notifications() {
   const [list, setList] = useState<any[]>([]);
@@ -174,9 +188,29 @@ export default function Notifications() {
               </Box>
               <Box>
                 <Label className="text-xs font-semibold text-slate-600">HTML body</Label>
-                <Textarea value={cfg.email?.body_html || ""} onChange={(e: any) => setEmail({ body_html: e.target.value })} data-testid="email-body"
-                  rows={9} className="mt-1.5 font-mono text-[12.5px] leading-relaxed" />
-                <Typography variant="inherit" component="p" className="text-[11px] text-slate-400 mt-1.5">Supports HTML and {`{{variable}}`} placeholders.</Typography>
+                <Box className="mt-1.5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <Box>
+                    <Textarea value={cfg.email?.body_html || ""} onChange={(e: any) => setEmail({ body_html: e.target.value })} data-testid="email-body"
+                      rows={12} className="font-mono text-[12.5px] leading-relaxed" />
+                    <Typography variant="inherit" component="p" className="text-[11px] text-slate-400 mt-1.5">Supports HTML and {`{{variable}}`} placeholders.</Typography>
+                  </Box>
+                  {/* Live preview with sample data */}
+                  <Box data-testid="email-preview-panel">
+                    <Box className="flex items-center gap-1.5 mb-1.5">
+                      <Eye className="h-3.5 w-3.5 text-[#5548D1]" />
+                      <Typography variant="inherit" component="span" className="text-[11px] uppercase tracking-wider text-slate-500 font-bold">Live preview (sample data)</Typography>
+                    </Box>
+                    <Box className="rounded-lg border border-border bg-white overflow-hidden">
+                      <Box className="border-b border-border/70 bg-slate-50 px-3 py-2 space-y-0.5">
+                        <Typography variant="inherit" component="p" className="text-[11px] text-slate-500"><b className="text-slate-600">From:</b> {renderSample(cfg.email?.from_addr || "") || "—"}</Typography>
+                        <Typography variant="inherit" component="p" className="text-[11px] text-slate-500"><b className="text-slate-600">To:</b> {renderSample(cfg.email?.to || "") || "—"}</Typography>
+                        <Typography variant="inherit" component="p" className="text-[12px] text-brand-navy font-semibold" data-testid="email-preview-subject"><b className="text-slate-600 font-normal text-[11px]">Subject:</b> {renderSample(cfg.email?.subject || "") || "—"}</Typography>
+                      </Box>
+                      <Box className="p-3 text-[12.5px] text-slate-700 min-h-[140px] max-h-[260px] overflow-auto" data-testid="email-preview-body"
+                        dangerouslySetInnerHTML={{ __html: renderSample(cfg.email?.body_html || "") }} />
+                    </Box>
+                  </Box>
+                </Box>
               </Box>
             </Box>
           </Box>

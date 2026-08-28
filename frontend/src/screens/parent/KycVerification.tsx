@@ -72,25 +72,16 @@ export function KycVerification({
   const [detectedPin, setDetectedPin] = useState("");
   const locationOk = !locationMatchEnabled || locStatus === "matched";
 
-  // E-KYC — liveness
-  const [camOn, setCamOn] = useState(false);
-  const [liveness, setLiveness] = useState("idle"); // idle|checking|done
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
+  // E-KYC — liveness (camera motion-based check; see LivenessCheck component below)
+  const [liveness, setLiveness] = useState("idle"); // idle|done
 
   // Compliance (silent, hardcoded pass) + completion guard
   const [compliance, setCompliance] = useState("idle"); // idle|running|pass
   const doneRef = useRef(false);
+  const complianceStartedRef = useRef(false);
 
   // Video KYC
   const [videoStage, setVideoStage] = useState("idle"); // idle|connecting|verifying|done
-
-  const stopCam = () => {
-    try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch { /* ignore */ }
-    streamRef.current = null; setCamOn(false);
-  };
-  useEffect(() => () => stopCam(), []);
-  useEffect(() => { if (stage !== "ekyc") stopCam(); }, [stage]);
 
   // ---- Nudge -> verification ----
   const continueFromNudge = () => {
@@ -178,31 +169,23 @@ export function KycVerification({
     );
   };
 
-  // ---- Liveness (camera) ----
-  const startCam = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-      streamRef.current = stream; setCamOn(true);
-      setTimeout(() => { if (videoRef.current) videoRef.current.srcObject = stream; }, 50);
-    } catch {
-      toast.info("Camera unavailable — using simulated liveness.");
-      setCamOn(false);
-    }
-  };
-  const captureLiveness = () => {
-    setLiveness("checking");
-    setTimeout(() => { setLiveness("done"); stopCam(); toast.success("Live photo verified"); }, 1500);
-  };
+  // ---- Liveness handled by the <LivenessCheck> component (camera motion check) ----
 
   // ---- Auto compliance + completion once all E-KYC parts pass ----
+  // NOTE: `compliance` must NOT be in the dependency array — including it caused
+  // the effect to re-run the instant we set it to "running", whose cleanup then
+  // cleared the pending timeout so finish() never fired (KYC stuck on "Running
+  // final checks…"). A ref guard ensures this starts exactly once.
   useEffect(() => {
     if (stage !== "ekyc") return;
-    if (aadhaarVerified && locationOk && liveness === "done" && compliance === "idle") {
+    if (complianceStartedRef.current) return;
+    if (aadhaarVerified && locationOk && liveness === "done") {
+      complianceStartedRef.current = true;
       setCompliance("running");
       const t = setTimeout(() => { setCompliance("pass"); finish(); }, 1400);
       return () => clearTimeout(t);
     }
-  }, [stage, aadhaarVerified, locationOk, liveness, compliance]);
+  }, [stage, aadhaarVerified, locationOk, liveness]);
 
   const finish = () => {
     if (doneRef.current) return;
@@ -447,6 +430,7 @@ export function KycVerification({
                 {locStatus === "no_postcode" && (<>No pincode could be determined for your current location. Consider <b>Video KYC</b> instead.</>)}
                 <Box className="mt-2 flex gap-2">
                   <Button size="sm" variant="outline" onClick={runLocationMatch} data-testid="ekyc-location-retry" className="h-8 rounded-lg text-xs font-semibold">Retry</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setDetectedPin(normPin(pincode)); setLocStatus("matched"); toast.success("Location matched (demo)"); }} data-testid="ekyc-location-simulate" className="h-8 rounded-lg text-xs font-semibold border-[#5548D1] text-[#5548D1]">Use demo location</Button>
                   {locStatus === "no_postcode" && (
                     <Button size="sm" variant="outline" onClick={() => setStage("video")} className="h-8 rounded-lg text-xs font-semibold border-[#5548D1] text-[#5548D1]"><Video className="h-3.5 w-3.5 mr-1" /> Video KYC</Button>
                   )}
@@ -458,25 +442,10 @@ export function KycVerification({
         </Box>
       )}
 
-      {/* Liveness */}
+      {/* Liveness — camera motion-based liveliness check */}
       <Box className="rounded-xl border border-border p-4" data-testid="ekyc-liveness">
         <Typography variant="inherit" component="p" className="font-head font-bold text-brand-navy text-sm flex items-center gap-2"><Camera className="h-4 w-4 text-[#5548D1]" /> Live Photo Check</Typography>
-        <Box className="mt-4 flex flex-col items-center">
-          <Box className="relative h-36 w-36 rounded-full overflow-hidden border-4 border-dashed border-[#5548D1]/40 bg-slate-50 flex items-center justify-center">
-            {camOn && liveness !== "done" ? (<video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />)
-              : liveness === "done" ? (<CheckCircle2 className="h-10 w-10 text-green-600" />)
-              : liveness === "checking" ? (<Loader2 className="h-10 w-10 text-[#5548D1] animate-spin" />)
-              : (<ScanFace className="h-12 w-12 text-slate-300" />)}
-          </Box>
-          {liveness !== "done" && (
-            <Box className="mt-3 flex gap-2">
-              {!camOn && liveness === "idle" && (
-                <Button variant="outline" onClick={startCam} data-testid="ekyc-start-cam" className="h-9 rounded-lg border-border text-slate-600 font-semibold"><Camera className="h-4 w-4 mr-1.5" /> Start Camera</Button>
-              )}
-              <Button onClick={captureLiveness} disabled={liveness === "checking"} data-testid="ekyc-capture-liveness" className="h-9 rounded-lg bg-[#5548D1] hover:bg-[#3F35A8] font-semibold">{liveness === "checking" ? "Verifying…" : "Capture Selfie & Verify"}</Button>
-            </Box>
-          )}
-        </Box>
+        <LivenessCheck done={liveness === "done"} onPass={() => setLiveness("done")} />
       </Box>
 
       {/* Compliance + completion (silent — no detail shown) */}
@@ -488,6 +457,235 @@ export function KycVerification({
       {compliance === "pass" && (
         <Box className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-2 text-emerald-700 font-semibold" data-testid="kyc-complete-ekyc">
           <CheckCircle2 className="h-5 w-5" /> Verification complete
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+
+// ===========================================================================
+// LivenessCheck — camera-only, on-device motion-based liveliness check.
+// The user is asked to perform a random action while the camera is live; a
+// static photo held to the camera produces near-zero frame-to-frame motion,
+// while a live face performing the action produces a clearly higher score.
+// Runs entirely on-device (no external API). A demo fallback lets the flow
+// complete on devices without a usable camera.
+// ===========================================================================
+const CHALLENGES = [
+  { name: "Blink twice", hint: "Blink your eyes twice" },
+  { name: "Turn head left then center", hint: "Slowly turn your head left, then back to center" },
+  { name: "Turn head right then center", hint: "Slowly turn your head right, then back to center" },
+  { name: "Smile", hint: "Give a natural smile" },
+  { name: "Nod", hint: "Nod your head once" },
+];
+const MOTION_THRESHOLD = 6;
+const CAPTURE_DURATION_MS = 3000;
+const SAMPLE_INTERVAL_MS = 150;
+
+function LivenessCheck({ done, onPass }) {
+  const [phase, setPhase] = useState("idle"); // idle | live | capturing | pass | fail
+  const [status, setStatus] = useState({ kind: "", text: "" });
+  const [overlay, setOverlay] = useState("");
+  const [progress, setProgress] = useState(0);
+  const [camError, setCamError] = useState(false);
+  const [detail, setDetail] = useState(null); // { challenge, maxScore, avgScore }
+
+  const videoRef = useRef(null);
+  const capturedRef = useRef(null);
+  const workRef = useRef(null);
+  const streamRef = useRef(null);
+
+  const stopCam = () => {
+    try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch { /* ignore */ }
+    streamRef.current = null;
+  };
+  useEffect(() => () => stopCam(), []);
+
+  const startCamera = async () => {
+    setStatus({ kind: "info", text: "Requesting camera access…" });
+    setCamError(false);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 480 }, height: { ideal: 360 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+      if (workRef.current) { workRef.current.width = 240; workRef.current.height = 180; }
+      setPhase("live");
+      setStatus({ kind: "info", text: "Camera live. Position your face in the frame, then begin the check." });
+    } catch (err) {
+      setCamError(true);
+      let msg = "Could not access the camera.";
+      if (err?.name === "NotAllowedError") msg = "Camera permission denied — allow access, or use the demo option below.";
+      else if (err?.name === "NotFoundError") msg = "No camera found on this device — use the demo option below.";
+      setStatus({ kind: "error", text: msg });
+    }
+  };
+
+  const grabFrame = (ctx, w, h) => {
+    ctx.drawImage(videoRef.current, 0, 0, w, h);
+    return ctx.getImageData(0, 0, w, h).data;
+  };
+  const frameDiffScore = (prev, curr) => {
+    let total = 0;
+    const len = prev.length;
+    for (let i = 0; i < len; i += 4) {
+      const p = (prev[i] + prev[i + 1] + prev[i + 2]) / 3;
+      const c = (curr[i] + curr[i + 1] + curr[i + 2]) / 3;
+      total += Math.abs(c - p);
+    }
+    return total / (len / 4);
+  };
+
+  const runChallenge = async () => {
+    const work = workRef.current;
+    if (!work) return;
+    const ctx = work.getContext("2d", { willReadFrequently: true });
+    const w = work.width, h = work.height;
+    const challenge = CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
+    setPhase("capturing");
+    setOverlay(challenge.hint);
+    setProgress(0);
+    setDetail(null);
+    setStatus({ kind: "info", text: "Capturing — perform the action shown above…" });
+
+    const start = Date.now();
+    let prev = grabFrame(ctx, w, h);
+    const scores = [];
+    let bestScore = -1;
+    let bestFrame = null;
+
+    await new Promise((resolve) => {
+      const interval = setInterval(() => {
+        const elapsed = Date.now() - start;
+        setProgress(Math.min(100, (elapsed / CAPTURE_DURATION_MS) * 100));
+        const curr = grabFrame(ctx, w, h);
+        const score = frameDiffScore(prev, curr);
+        scores.push(score);
+        if (score > bestScore) {
+          bestScore = score;
+          const v = videoRef.current;
+          const c = document.createElement("canvas");
+          c.width = v.videoWidth || 480; c.height = v.videoHeight || 360;
+          c.getContext("2d").drawImage(v, 0, 0);
+          bestFrame = c;
+        }
+        prev = curr;
+        if (elapsed >= CAPTURE_DURATION_MS) { clearInterval(interval); resolve(); }
+      }, SAMPLE_INTERVAL_MS);
+    });
+
+    setOverlay("");
+    const avgScore = scores.reduce((a, b) => a + b, 0) / (scores.length || 1);
+    const maxScore = scores.length ? Math.max(...scores) : 0;
+    const passed = maxScore > MOTION_THRESHOLD;
+    setDetail({ challenge: challenge.name, maxScore, avgScore });
+
+    if (passed && bestFrame && capturedRef.current) {
+      capturedRef.current.width = bestFrame.width;
+      capturedRef.current.height = bestFrame.height;
+      capturedRef.current.getContext("2d").drawImage(bestFrame, 0, 0);
+    }
+    stopCam();
+
+    if (passed) {
+      setPhase("pass");
+      setStatus({ kind: "pass", text: "Liveliness confirmed — captured photo accepted." });
+      onPass?.();
+    } else {
+      setPhase("fail");
+      setStatus({ kind: "fail", text: "Could not confirm liveliness (motion too low — possible static photo). Please try again with clearer movement." });
+    }
+  };
+
+  const retry = () => {
+    setPhase("idle"); setStatus({ kind: "", text: "" }); setDetail(null); setProgress(0); setCamError(false);
+  };
+
+  const simulate = () => {
+    stopCam();
+    setPhase("pass");
+    setDetail({ challenge: "Simulated (demo)", maxScore: 0, avgScore: 0 });
+    setStatus({ kind: "pass", text: "Liveliness simulated for demo — accepted." });
+    onPass?.();
+  };
+
+  const statusTone = {
+    info: "bg-[#EEF0FF] text-[#3F35A8] border-[#5548D1]/20",
+    pass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    fail: "bg-red-50 text-red-700 border-red-200",
+    error: "bg-amber-50 text-amber-800 border-amber-200",
+  }[status.kind] || "";
+
+  const passed = done || phase === "pass";
+
+  return (
+    <Box className="mt-3">
+      <Box className="relative mx-auto w-full max-w-[320px] aspect-[4/3] rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center">
+        <video ref={videoRef} autoPlay playsInline muted
+          className={`h-full w-full object-cover ${phase === "live" || phase === "capturing" ? "block" : "hidden"}`} />
+        <canvas ref={capturedRef} className={`h-full w-full object-cover ${passed ? "block" : "hidden"}`} />
+        {!passed && phase !== "live" && phase !== "capturing" && (
+          <ScanFace className="h-14 w-14 text-slate-600" />
+        )}
+        {overlay && (
+          <Box className="absolute top-0 left-0 right-0 px-4 py-3 text-center text-white text-sm font-semibold bg-gradient-to-b from-black/60 to-transparent" data-testid="liveness-overlay">
+            {overlay}
+          </Box>
+        )}
+        {phase === "capturing" && (
+          <Box className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/25">
+            <Box className="h-full bg-[#5548D1] transition-all" style={{ width: `${progress}%` }} />
+          </Box>
+        )}
+        {passed && (
+          <Box className="absolute top-2 right-2 h-8 w-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg">
+            <CheckCircle2 className="h-5 w-5" />
+          </Box>
+        )}
+      </Box>
+      <canvas ref={workRef} className="hidden" />
+
+      {!passed && (
+        <Box className="mt-3 flex flex-wrap justify-center gap-2">
+          {phase === "idle" && (
+            <Button onClick={startCamera} data-testid="liveness-start" className="h-9 rounded-lg bg-[#5548D1] hover:bg-[#3F35A8] font-semibold">
+              <Camera className="h-4 w-4 mr-1.5" /> Start camera
+            </Button>
+          )}
+          {phase === "live" && (
+            <Button onClick={runChallenge} data-testid="liveness-begin" className="h-9 rounded-lg bg-[#5548D1] hover:bg-[#3F35A8] font-semibold">
+              <ScanFace className="h-4 w-4 mr-1.5" /> Begin liveliness check
+            </Button>
+          )}
+          {phase === "fail" && (
+            <Button onClick={retry} variant="outline" data-testid="liveness-retry" className="h-9 rounded-lg border-border text-slate-600 font-semibold">
+              <RefreshCw className="h-4 w-4 mr-1.5" /> Try again
+            </Button>
+          )}
+          {/* Demo fallback — always available so the flow never dead-ends without a camera */}
+          {(phase === "idle" || phase === "fail" || camError) && (
+            <Button onClick={simulate} variant="outline" data-testid="liveness-simulate" className="h-9 rounded-lg border-[#5548D1] text-[#5548D1] font-semibold">
+              Use simulated liveliness (demo)
+            </Button>
+          )}
+        </Box>
+      )}
+
+      {status.text && (
+        <Box className={`mt-3 rounded-lg border px-3 py-2 text-[12.5px] leading-relaxed ${statusTone}`} data-testid="liveness-status">
+          {status.text}
+        </Box>
+      )}
+
+      {detail && (
+        <Box className="mt-2 text-[11px] text-slate-400 text-center" data-testid="liveness-detail">
+          Challenge: {detail.challenge} · Motion {detail.maxScore.toFixed(1)} (threshold &gt; {MOTION_THRESHOLD})
         </Box>
       )}
     </Box>
