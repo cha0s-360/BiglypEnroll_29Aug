@@ -4694,6 +4694,9 @@
     .lg\:grid-cols-\[1fr_300px\] {
       grid-template-columns: 1fr 300px;
     }
+    .lg\:grid-cols-\[280px_1fr\] {
+      grid-template-columns: 280px 1fr;
+    }
     .lg\:grid-cols-\[300px_1fr\] {
       grid-template-columns: 300px 1fr;
     }

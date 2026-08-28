@@ -1359,6 +1359,15 @@ async def on_start():
     })
     app.include_router(psy["router"])
 
+    # OPS notifications management + EMI reminder job
+    from notifications import create_notifications_router
+    notif = create_notifications_router(db, {
+        "get_current_user": get_current_user,
+        "require_roles": require_roles,
+    })
+    app.include_router(notif["router"])
+    await notif["ensure_seed"]()
+
     # daily auto-reminder job (respects each school's reminder_settings)
     try:
         from apscheduler.schedulers.asyncio import AsyncIOScheduler

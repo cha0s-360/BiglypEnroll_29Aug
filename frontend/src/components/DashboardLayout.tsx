@@ -7,7 +7,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from "@/context/AuthContext";
 import { Logo } from "@/components/Logo";
 import {
-  LayoutDashboard, Wallet, GraduationCap, Users, Settings, LogOut, School, UserCog, Landmark, Bell, Building2, AlertTriangle,
+  LayoutDashboard, Wallet, GraduationCap, Users, Settings, LogOut, School, UserCog, Landmark, Bell, Building2, AlertTriangle, MailWarning,
 } from "lucide-react";
 
 const ADMIN_NAV = [
@@ -33,6 +33,7 @@ export function DashboardLayout({ children, title }) {
         { to: "/dashboard/financing-banks", label: "Financing Banks", icon: Building2, testid: "nav-financing-banks" },
         { to: "/dashboard/schools", label: "Schools", icon: GraduationCap, testid: "nav-schools" },
         { to: "/dashboard/failures", label: "Failures", icon: AlertTriangle, testid: "nav-failures" },
+        { to: "/dashboard/notifications", label: "Notifications", icon: MailWarning, testid: "nav-notifications" },
         ...ADMIN_NAV.slice(6),
       ]
     : ADMIN_NAV;
