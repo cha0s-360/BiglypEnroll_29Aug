@@ -901,6 +901,9 @@
   .h-40 {
     height: calc(var(--spacing) * 40);
   }
+  .h-44 {
+    height: calc(var(--spacing) * 44);
+  }
   .h-48 {
     height: calc(var(--spacing) * 48);
   }
@@ -1062,6 +1065,9 @@
   }
   .w-16 {
     width: calc(var(--spacing) * 16);
+  }
+  .w-20 {
+    width: calc(var(--spacing) * 20);
   }
   .w-24 {
     width: calc(var(--spacing) * 24);
@@ -1960,6 +1966,9 @@
   .bg-\[\#EEF0FF\] {
     background-color: #EEF0FF;
   }
+  .bg-\[\#EEF0FF\]\/40 {
+    background-color: color-mix(in oklab, #EEF0FF 40%, transparent);
+  }
   .bg-\[\#EEF0FF\]\/50 {
     background-color: color-mix(in oklab, #EEF0FF 50%, transparent);
   }
@@ -1985,6 +1994,12 @@
     background-color: color-mix(in srgb, oklch(98.7% 0.022 95.277) 50%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--color-amber-50) 50%, transparent);
+    }
+  }
+  .bg-amber-50\/60 {
+    background-color: color-mix(in srgb, oklch(98.7% 0.022 95.277) 60%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-amber-50) 60%, transparent);
     }
   }
   .bg-amber-100 {
@@ -2153,6 +2168,12 @@
     background-color: color-mix(in srgb, oklch(97.1% 0.013 17.38) 40%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--color-red-50) 40%, transparent);
+    }
+  }
+  .bg-red-50\/50 {
+    background-color: color-mix(in srgb, oklch(97.1% 0.013 17.38) 50%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-red-50) 50%, transparent);
     }
   }
   .bg-red-100 {
@@ -2946,6 +2967,9 @@
   }
   .text-emerald-300 {
     color: var(--color-emerald-300);
+  }
+  .text-emerald-400 {
+    color: var(--color-emerald-400);
   }
   .text-emerald-500 {
     color: var(--color-emerald-500);

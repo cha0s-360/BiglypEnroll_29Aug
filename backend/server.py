@@ -673,6 +673,9 @@ def _bank_flow_cfg(bank: dict | None) -> dict:
         "name": (bank or {}).get("name"),
         "advance_emi": bool((bank or {}).get("advance_emi")),
         "min_loan_amount": float((bank or {}).get("min_loan_amount", FINANCING_MIN_DEFAULT)),
+        # Bucket 4 Screen 3 (KYC) — driven by the OPS bank config
+        "location_match": bool((bank or {}).get("location_match_aadhaar")),
+        "name_match_rule": (bank or {}).get("name_match_rule", "aadhaar"),  # profile | pan | aadhaar
     }
 
 
@@ -680,6 +683,25 @@ def _bank_flow_cfg(bank: dict | None) -> dict:
 async def financing_bank_config(user: dict = Depends(get_current_user)):
     """Screen 1 reads this to know min loan amount + advance-EMI vs down-payment mode."""
     return _bank_flow_cfg(await _active_financing_bank())
+
+
+class ProfileUpdateIn(BaseModel):
+    name: str | None = None
+    dob: str | None = None
+
+
+@api.put("/parent/profile")
+async def update_parent_profile(body: ProfileUpdateIn, user: dict = Depends(get_current_user)):
+    """Bucket 4 Screen 3 (KYC) — used by the name/DOB-mismatch correction flow so a
+    corrected name/DOB becomes the value of record on the parent's profile."""
+    upd = {}
+    if body.name and body.name.strip():
+        upd["name"] = body.name.strip()
+    if body.dob and body.dob.strip():
+        upd["dob"] = body.dob.strip()
+    if upd:
+        await db.users.update_one({"_id": ObjectId(user["id"])}, {"$set": upd})
+    return {"ok": True, **upd}
 
 
 @api.post("/parent/financing/preview")

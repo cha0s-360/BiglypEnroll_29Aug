@@ -105,6 +105,18 @@
 user_problem_statement: "Redesign the parent's EMI selection & fee-financing application journey per the uploaded PDF (screen-wise changes). Backend change: /parent/financing/preview & /parent/pay-financing now return/store a 1% (incl. GST) processing fee, apr, total_repayment, amount_payable_now, requires_docs, and an agreement_id."
 
 backend:
+  - task: "Bucket 4 Screen 3 (KYC) backend — bank-config exposes location_match + name_match_rule; new PUT /api/parent/profile (name/DOB correction)"
+    implemented: true
+    working: "NA"
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Auth: parent@biglyp.com/parent123. (1) GET /api/parent/financing/bank-config now ALSO returns `location_match` (bool, from active bank's location_match_aadhaar => true for seeded CSB) and `name_match_rule` (string profile|pan|aadhaar => 'aadhaar' for CSB), in addition to existing name/advance_emi/min_loan_amount. (2) NEW PUT /api/parent/profile body {name?: str, dob?: str} => 200 {ok:true, ...updated fields}; updates the current user's profile (db.users). Empty body => {ok:true} with no fields. Verify: PUT with {name:'Anjali Sharma','dob':'15 Jun 1990'} => ok true and echoes name+dob; PUT requires auth (401 without). Smoke-tested via curl: bank-config returns location_match=true,name_match_rule='aadhaar'; profile update returns ok. Frontend KYC flow (nudge, E-KYC real Nominatim location-match, Video KYC fallback, all 3 decline states, silent compliance pass) already verified manually via screenshots — do NOT frontend-test unless user asks."
+
   - task: "Bucket 4 Screen 2 eligibility gate — POST /api/parent/cibil-check now returns emi_threshold + emi_eligible against the bank's configured credit-score threshold (default 750)"
     implemented: true
     working: true
@@ -544,14 +556,14 @@ frontend:
 
 test_plan:
   current_focus:
-    - "Bucket 4 Screen 2 eligibility gate — POST /api/parent/cibil-check emi_threshold + emi_eligible"
+    - "Bucket 4 Screen 3 (KYC) backend — bank-config location_match/name_match_rule + PUT /api/parent/profile"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     -agent: "main"
-    -message: "Test ONLY the modified POST /api/parent/cibil-check endpoint. Auth: parent@biglyp.com/parent123. New response fields to verify: `emi_threshold` (should be 750) and `emi_eligible` (bool = score >= emi_threshold). Checks: (1) PAN 'ZZZZZ1234A' + consent:true => 200, score < 750, emi_eligible=false, emi_threshold=750. (2) PAN 'AAAAA1234A' + consent:true => 200, score >= 750, emi_eligible=true. (3) invalid PAN 'ABC' => 400. (4) consent:false => 400. (5) confirm existing fields still present: score (int), approved (bool), band. Do NOT test other endpoints (fin-schools already green)."
+    -message: "Test ONLY these two backend changes. Auth: parent@biglyp.com/parent123. (1) GET /api/parent/financing/bank-config must now include fields location_match (bool, expect true) and name_match_rule (string, expect 'aadhaar'), while still including name/advance_emi/min_loan_amount. (2) PUT /api/parent/profile: body {\"name\":\"Anjali Sharma\",\"dob\":\"15 Jun 1990\"} => 200 {ok:true} echoing name+dob; body {} => 200 {ok:true}; no auth header => 401. Do NOT re-test other endpoints (cibil-check emi gate and fin-schools already green)."
     -agent: "testing"
     -message: "Testing completed successfully. All 5 test cases passed (6 checks from review request). POST /api/parent/cibil-check endpoint working correctly with new emi_threshold and emi_eligible fields. Test results: (1) Low score PAN 'ZZZZZ1234A': emi_threshold=750, emi_eligible=False, score=575 (<750), all existing fields present (score int, approved bool, band str), consistency verified (False == 575>=750). (2) High score PAN 'AAAAA1234A': emi_threshold=750, emi_eligible=True, score=831 (>=750), consistency verified (True == 831>=750). (3) Invalid PAN 'ABC': HTTP 400 with proper error message. (4) Consent false: HTTP 400 with proper error message. (5) No auth header: HTTP 401. All validation, authentication, field types, and business logic working correctly. Feature is production-ready. No issues found."
 

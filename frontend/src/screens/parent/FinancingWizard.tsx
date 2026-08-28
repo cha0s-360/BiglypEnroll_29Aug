@@ -5,6 +5,7 @@ import Typography from '@mui/material/Typography';
 import { useEffect, useMemo, useRef, useState } from "react";
 import api, { inr } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { KycVerification } from "./KycVerification";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -65,6 +66,8 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
 
   // Bucket 4 — Screen 2: eligibility redirect (not a dead-end) when below threshold
   const [ineligibleOpen, setIneligibleOpen] = useState(false);
+  // Bucket 4 — Screen 3: KYC verification completion (E-KYC or Video KYC)
+  const [kycDone, setKycDone] = useState(false);
 
   // Step 1 — plan
   const [down, setDown] = useState(0);
@@ -143,6 +146,7 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
     setEligConsent(false); setCibilPan(""); setCibilChecking(false); setCibilResult(null); setScoreAnim(0);
     setGender(""); setMaritalStatus(""); setFatherName(""); setPan(""); setRelationship(""); setEmployment("Salaried");
     setAadhaarConsent(false); setOtpSent(false); setOtp(""); setAadhaarVerified(false); setLiveness("idle");
+    setKycDone(false);
     setDocs({});
     setReviewChecks({ identity: "done", documents: "done", credit: "pending", decision: "pending" });
     setOfferReady(false);
@@ -253,6 +257,16 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
     onIneligible?.();
   };
 
+  // Bucket 4 — Screen 3: KYC name/DOB correction becomes value of record on profile.
+  const applyProfileCorrection = (name, newDob) => {
+    if (name) {
+      const parts = name.trim().split(/\s+/);
+      setFirstName(parts[0] || "");
+      setLastName(parts.slice(1).join(" "));
+    }
+    if (newDob) setDob(newDob);
+  };
+
   // animate the CIBIL score meter
   useEffect(() => {
     if (!cibilResult) { setScoreAnim(0); return; }
@@ -294,13 +308,13 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
       firstName.trim() && lastName.trim() && fatherName.trim() && gender && maritalStatus &&
       email.trim() && /^\S+@\S+\.\S+$/.test(email) && PAN_RE.test(pan) && dob &&
       relationship && employment &&
-      aadhaarVerified && liveness === "done" && docsComplete
+      kycDone && docsComplete
     );
     if (step === 4) return offerReady;
     if (step === 5) return agreementSigned && autopaySet && upfrontPaid;
     return false;
   }, [step, preview, eligConsent, cibilResult, cibilPan, firstName, lastName, dob, fatherName, gender, maritalStatus,
-      email, pan, relationship, employment, aadhaarVerified, liveness, docsComplete, offerReady,
+      email, pan, relationship, employment, kycDone, docsComplete, offerReady,
       agreementSigned, autopaySet, upfrontPaid]);
 
   const next = () => {
@@ -705,78 +719,17 @@ export function FinancingWizard({ open, onOpenChange, studentId, studentName, st
                 </Box>
               </Box>
 
-              {/* Address — auto-fetched from profile (read-only) */}
-              <Box className="rounded-xl border border-border p-4 bg-slate-50/60" data-testid="kyc-address">
-                <Box className="flex items-center justify-between">
-                  <Typography variant="inherit" component="p" className="font-head font-bold text-brand-navy text-sm flex items-center gap-2"><Landmark className="h-4 w-4 text-[#5548D1]" /> Residential Address</Typography>
-                  <Box component="span" className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Auto-fetched from profile</Box>
-                </Box>
-                <Typography variant="inherit" component="p" className="text-sm text-brand-navy mt-2 leading-relaxed">
-                  {PROFILE_ADDRESS.line1}, {PROFILE_ADDRESS.locality}, {PROFILE_ADDRESS.city}, {PROFILE_ADDRESS.state} - {PROFILE_ADDRESS.pincode}
-                </Typography>
-                <Typography variant="inherit" component="p" className="text-[11px] text-slate-500 mt-1">Residence type: {PROFILE_ADDRESS.residenceType}</Typography>
-              </Box>
-
-              {/* Aadhaar verification with consent */}
-              <Box className="rounded-xl border border-border p-4">
-                <Typography variant="inherit" component="p" className="font-head font-bold text-brand-navy text-sm flex items-center gap-2"><ScanFace className="h-4 w-4 text-[#5548D1]" /> Aadhaar Verification</Typography>
-                <Typography variant="inherit" component="p" className="text-xs text-slate-500 mt-1">Authorize fast identity verification via Aadhaar-linked OTP / DigiLocker.</Typography>
-                <Box component="label" className="flex items-start gap-3 cursor-pointer mt-3" data-testid="aadhaar-consent-label">
-                  <Checkbox checked={aadhaarConsent} onCheckedChange={(v) => setAadhaarConsent(!!v)} className="mt-0.5" data-testid="aadhaar-consent" disabled={aadhaarVerified} />
-                  <Box component="span" className="text-xs text-slate-600 leading-relaxed">I consent to verify my identity using my Aadhaar via OTP / DigiLocker as per UIDAI guidelines.</Box>
-                </Box>
-                {aadhaarVerified ? (
-                  <Box className="mt-3 flex items-center gap-2 text-sm font-semibold text-green-600" data-testid="aadhaar-verified">
-                    <CheckCircle2 className="h-5 w-5" /> Aadhaar identity verified
-                  </Box>
-                ) : !otpSent ? (
-                  <Button variant="outline" onClick={sendOtp} disabled={!aadhaarConsent} data-testid="send-otp-btn"
-                    className="mt-3 h-10 rounded-lg border-[#5548D1] text-[#5548D1] hover:bg-[#EEF0FF] font-semibold">
-                    Send Verification Code
-                  </Button>
-                ) : (
-                  <Box className="mt-3 flex items-end gap-2">
-                    <Box className="flex-1">
-                      <Label className="text-xs text-brand-navy">Enter OTP</Label>
-                      <Input value={otp} onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))} placeholder="6-digit code" className="rounded-lg mt-1.5" inputMode="numeric" data-testid="otp-input" />
-                    </Box>
-                    <Button onClick={verifyOtp} data-testid="verify-otp-btn" className="h-10 rounded-lg bg-[#5548D1] hover:bg-[#3F35A8] font-semibold">Verify</Button>
-                  </Box>
-                )}
-              </Box>
-
-              {/* Live photo check */}
-              <Box className="rounded-xl border border-border p-4">
-                <Typography variant="inherit" component="p" className="font-head font-bold text-brand-navy text-sm flex items-center gap-2"><Camera className="h-4 w-4 text-[#5548D1]" /> Live Photo Check</Typography>
-                <Box className="mt-4 flex flex-col items-center">
-                  <Box className="relative h-40 w-40 rounded-full overflow-hidden border-4 border-dashed border-[#5548D1]/40 bg-slate-50 flex items-center justify-center" data-testid="liveness-frame">
-                    {camOn && liveness !== "done" ? (
-                      <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
-                    ) : liveness === "done" ? (
-                      <Box className="flex flex-col items-center text-green-600"><CheckCircle2 className="h-10 w-10" /></Box>
-                    ) : liveness === "checking" ? (
-                      <Loader2 className="h-10 w-10 text-[#5548D1] animate-spin" />
-                    ) : (
-                      <ScanFace className="h-12 w-12 text-slate-300" />
-                    )}
-                  </Box>
-                  <Typography variant="inherit" component="p" className="text-xs text-slate-500 mt-3">
-                    {liveness === "done" ? "Live photo verified" : "Position face within the frame"}
-                  </Typography>
-                  {liveness !== "done" && (
-                    <Box className="mt-3 flex gap-2">
-                      {!camOn && liveness === "idle" && (
-                        <Button variant="outline" onClick={startCam} data-testid="start-cam-btn" className="h-9 rounded-lg border-border text-slate-600 font-semibold">
-                          <Camera className="h-4 w-4 mr-1.5" /> Start Camera
-                        </Button>
-                      )}
-                      <Button onClick={captureLiveness} disabled={liveness === "checking"} data-testid="capture-liveness-btn" className="h-9 rounded-lg bg-[#5548D1] hover:bg-[#3F35A8] font-semibold">
-                        {liveness === "checking" ? "Verifying..." : "Capture Selfie & Verify"}
-                      </Button>
-                    </Box>
-                  )}
-                </Box>
-              </Box>
+              {/* Bucket 4 — Screen 3: KYC & Verification (pre-KYC nudge -> E-KYC / Video-KYC fallback,
+                  real device-location + Nominatim pincode match, distinct decline states, silent compliance pass) */}
+              <KycVerification
+                profileName={`${firstName} ${lastName}`.trim()}
+                profileDob={dob}
+                nameMatchRule={bankCfg?.name_match_rule || "aadhaar"}
+                locationMatchEnabled={bankCfg?.location_match ?? true}
+                onVerified={() => setKycDone(true)}
+                onExitHome={() => onOpenChange(false)}
+                onProfileUpdate={applyProfileCorrection}
+              />
 
               {/* Income documents — only when financing above ₹3L */}
               {needDocs && (
